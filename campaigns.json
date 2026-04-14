@@ -1,0 +1,41 @@
+[
+  {
+    "campaign_title": "BMW Premium Special",
+    "slug": "bmw-3-series-x5-25-off",
+    "cars": [
+      {
+        "make": "BMW",
+        "model": "3 Series",
+        "year": null,
+        "image_query": "BMW 3 Series car exterior"
+      },
+      {
+        "make": "BMW",
+        "model": "X5",
+        "year": null,
+        "image_query": "BMW X5 car exterior"
+      }
+    ],
+    "offer": {
+      "type": "discount_percent",
+      "discount_percent": 25,
+      "price_per_day": null,
+      "price_currency": "AED",
+      "custom_label": null
+    },
+    "validity": {
+      "start": null,
+      "end": null,
+      "label": "Valid until April 20"
+    },
+    "headline": "25% Off BMW 3 Series & X5",
+    "subheadline": "Experience premium German engineering. Book your luxury BMW rental until April 20.",
+    "cta_text": "Book Now",
+    "highlights": [
+      "25% discount on BMW 3 Series and X5",
+      "Premium luxury sedans and SUVs",
+      "Valid until April 20"
+    ],
+    "created": "2026-04-15T00:49:25.262897"
+  }
+]
