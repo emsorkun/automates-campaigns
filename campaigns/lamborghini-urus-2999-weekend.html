@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Urus Weekend Power Deal – AutoMates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0B0C10;--surface:#14151B;--card:#1A1B22;
+  --gold:#C8A961;--gold-light:#E8D5A3;--gold-dim:rgba(200,169,97,0.15);
+  --white:#FFFFFF;--light:#B0B0C4;--muted:#6E6E82;
+}
+body{
+  font-family:'Inter','Helvetica Neue',Arial,sans-serif;
+  background:var(--bg);color:var(--white);min-height:100vh;
+}
+h1,h2,h3,h4{font-family:'Montserrat','Helvetica Neue',Arial,sans-serif}
+
+/* ── HEADER ── */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:24px 48px;border-bottom:1px solid var(--gold-dim);
+  background:rgba(11,12,16,0.95);backdrop-filter:blur(8px);
+  position:sticky;top:0;z-index:100;
+}
+.logo img{height:44px;width:auto}
+.header-contact{
+  font-size:13px;color:var(--light);
+  display:flex;gap:20px;align-items:center;
+}
+.header-contact a{
+  color:var(--gold);text-decoration:none;font-weight:500;
+  font-family:'Montserrat',sans-serif;letter-spacing:0.5px;
+}
+
+/* ── HERO ── */
+.hero{
+  text-align:center;padding:72px 48px 56px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(200,169,97,0.06) 0%, transparent 60%),
+    linear-gradient(180deg,#0B0C10 0%,#0E0F15 100%);
+  position:relative;overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(45deg,transparent,transparent 40px,rgba(200,169,97,0.012) 40px,rgba(200,169,97,0.012) 41px);
+  pointer-events:none;
+}
+.hero-label{
+  font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:4px;text-transform:uppercase;color:var(--gold);
+  margin-bottom:20px;position:relative;z-index:1;
+}
+.hero h1{
+  font-size:clamp(32px,5vw,60px);font-weight:800;line-height:1.1;
+  letter-spacing:-1px;position:relative;z-index:1;margin-bottom:16px;
+}
+.hero h1 span{
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.hero-sub{
+  font-size:17px;color:var(--light);max-width:560px;margin:0 auto 32px;
+  line-height:1.6;position:relative;z-index:1;
+}
+.validity-tag{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--gold-dim);border:1px solid rgba(200,169,97,0.3);
+  border-radius:100px;padding:8px 20px;
+  font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;
+  letter-spacing:2px;text-transform:uppercase;color:var(--gold);
+  position:relative;z-index:1;
+}
+.validity-tag::before{content:'⏳';font-size:14px;}
+
+/* ── HIGHLIGHTS ── */
+.highlights-section{padding:0 48px 48px;display:flex;justify-content:center}
+.highlights{
+  list-style:none;display:flex;gap:32px;flex-wrap:wrap;justify-content:center;
+  margin-top:0;
+}
+.highlights li{
+  display:flex;align-items:center;gap:8px;
+  font-size:13.5px;color:var(--light);font-weight:500;
+}
+.bullet{color:var(--gold);font-size:10px}
+
+/* ── CARS GRID ── */
+.cars-section{padding:0 48px 64px}
+.section-label{
+  text-align:center;font-family:'Montserrat',sans-serif;font-size:11px;
+  font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--gold);
+  margin-bottom:32px;display:flex;align-items:center;gap:16px;
+}
+.section-label::before,.section-label::after{
+  content:'';flex:1;height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold-dim),transparent);
+}
+.cars-grid{display:grid;gap:24px}
+.grid-1{grid-template-columns:1fr;max-width:600px;margin:0 auto}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:768px){
+  .grid-2,.grid-3{grid-template-columns:1fr}
+}
+
+/* ── CAR CARD ── */
+.car-card{
+  background:var(--card);border:1px solid var(--gold-dim);
+  border-radius:16px;overflow:hidden;
+  transition:transform 0.3s,box-shadow 0.3s;
+}
+.car-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 20px 60px rgba(200,169,97,0.12);
+}
+.card-image{
+  height:240px;position:relative;background:var(--surface);
+  display:flex;align-items:center;justify-content:center;
+}
+.card-img-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(to top,rgba(11,12,16,0.7) 0%,transparent 60%);
+}
+.card-img-icon{font-size:64px;opacity:0.15}
+.price-badge{
+  position:absolute;top:16px;right:16px;z-index:2;
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  color:#0B0C10;font-family:'Montserrat',sans-serif;
+  font-size:18px;font-weight:800;letter-spacing:1px;
+  padding:8px 16px;border-radius:10px;
+  box-shadow:0 4px 20px rgba(200,169,97,0.4);
+}
+.price-badge span{font-size:12px;font-weight:600}
+.card-body{padding:20px 24px 24px}
+.car-make{
+  font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;
+}
+.car-model{
+  font-family:'Montserrat',sans-serif;font-size:22px;font-weight:700;color:var(--white);
+}
+
+/* ── CTA SECTION ── */
+.cta-section{
+  text-align:center;padding:56px 48px 72px;
+  background:radial-gradient(ellipse at 50% 100%,rgba(200,169,97,0.04) 0%,transparent 60%);
+}
+.cta-section h2{
+  font-size:28px;font-weight:700;margin-bottom:12px;
+}
+.cta-section p{font-size:15px;color:var(--light);margin-bottom:36px}
+.cta-buttons{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.btn-primary{
+  display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  color:#0B0C10;font-family:'Montserrat',sans-serif;
+  font-size:14px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  padding:16px 36px;border-radius:10px;text-decoration:none;
+  transition:opacity 0.2s,transform 0.2s;
+  box-shadow:0 4px 24px rgba(200,169,97,0.3);
+}
+.btn-primary:hover{opacity:0.9;transform:translateY(-2px)}
+.btn-secondary{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid var(--gold);color:var(--gold);
+  font-family:'Montserrat',sans-serif;font-size:14px;font-weight:600;
+  letter-spacing:1.5px;text-transform:uppercase;
+  padding:16px 36px;border-radius:10px;text-decoration:none;
+  transition:background 0.2s,transform 0.2s;
+}
+.btn-secondary:hover{background:var(--gold-dim);transform:translateY(-2px)}
+
+/* ── FOOTER ── */
+footer{
+  border-top:1px solid var(--gold-dim);padding:28px 48px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;
+}
+.footer-left{display:flex;align-items:center;gap:12px}
+.footer-left img{height:28px;width:auto}
+.footer-left span{font-size:12px;color:var(--muted);letter-spacing:1px}
+.footer-right{font-size:12px;color:var(--muted)}
+.footer-right a{color:var(--gold-light);text-decoration:none}
+
+@media(max-width:600px){
+  header{padding:16px 20px}
+  .header-contact{display:none}
+  .hero{padding:48px 20px 40px}
+  .cars-section,.highlights-section,.cta-section{padding-left:20px;padding-right:20px}
+  footer{padding:20px}
+  .cta-buttons{flex-direction:column;align-items:center}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><img src="../logo.png" alt="AutoMates"></div>
+  <nav class="header-contact">
+    <a href="tel:+971585532282">+971 58 553 2282</a>
+    <a href="https://automates.ae" target="_blank">automates.ae</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-label">Exclusive Offer · AutoMates Dubai</div>
+  <h1>Lamborghini Urus: Weekend Power at 2,999 <span>AED</span></h1>
+  <p class="hero-sub">Dominate Dubai's roads in the legendary Urus SUV. Exclusive weekend rate available for a limited time.</p>
+  <div class="validity-tag">This weekend only</div>
+</section>
+
+<section class="highlights-section"><ul class="highlights"><li><span class="bullet">✦</span>Lamborghini Urus at only 2,999 AED/day</li><li><span class="bullet">✦</span>Exclusive weekend availability</li><li><span class="bullet">✦</span>Premium super SUV experience in Dubai</li></ul></section>
+
+<section class="cars-section">
+  <div class="section-label">Featured Vehicles</div>
+  <div class="cars-grid grid-1">
+    
+    <div class="car-card">
+      <div class="card-image" style="background: linear-gradient(135deg, #1A1B22 0%, #0B0C10 100%);">
+        <div class="card-img-icon">🚗</div>
+        <div class="price-badge">AED 2999<span>/day</span></div>
+      </div>
+      <div class="card-body">
+        <div class="car-make">Lamborghini</div>
+        <div class="car-model">Urus</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-section">
+  <h2>Ready to <span style="color:var(--gold)">Drive?</span></h2>
+  <p>Contact us now to secure this deal before it expires.</p>
+  <div class="cta-buttons">
+    <a class="btn-primary" href="https://wa.me/971585532282?text=Hi%2C+I'm+interested+in+the+Urus+Weekend+Power+Deal" target="_blank">
+      💬 Book Now on WhatsApp
+    </a>
+    <a class="btn-secondary" href="tel:+971585532282">
+      📞 Call Us
+    </a>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-left">
+    <img src="../logo.png" alt="AutoMates">
+    <span>© 2026 AutoMates Auto Rentals L.L.C.</span>
+  </div>
+  <div class="footer-right">
+    <a href="https://instagram.com/automates" target="_blank">@automates</a>
+    &nbsp;·&nbsp;
+    <a href="https://automates.ae" target="_blank">automates.ae</a>
+  </div>
+</footer>
+
+</body>
+</html>

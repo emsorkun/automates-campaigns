@@ -37,5 +37,38 @@
       "Valid until April 20"
     ],
     "created": "2026-04-15T00:49:25.262897"
+  },
+  {
+    "campaign_title": "Urus Weekend Power Deal",
+    "slug": "lamborghini-urus-2999-weekend",
+    "cars": [
+      {
+        "make": "Lamborghini",
+        "model": "Urus",
+        "year": null,
+        "image_query": "Lamborghini Urus car exterior"
+      }
+    ],
+    "offer": {
+      "type": "fixed_price",
+      "discount_percent": null,
+      "price_per_day": 2999,
+      "price_currency": "AED",
+      "custom_label": null
+    },
+    "validity": {
+      "start": null,
+      "end": null,
+      "label": "This weekend only"
+    },
+    "headline": "Lamborghini Urus: Weekend Power at 2,999 AED",
+    "subheadline": "Dominate Dubai's roads in the legendary Urus SUV. Exclusive weekend rate available for a limited time.",
+    "cta_text": "Book Now",
+    "highlights": [
+      "Lamborghini Urus at only 2,999 AED/day",
+      "Exclusive weekend availability",
+      "Premium super SUV experience in Dubai"
+    ],
+    "created": "2026-04-15T00:55:46.426867"
   }
 ]
