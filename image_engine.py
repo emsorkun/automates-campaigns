@@ -111,12 +111,14 @@ def fetch_multiple_photos(query, n=3):
                 timeout=8)
             photos = r.json().get("photos", []) if r.ok else []
             for photo in photos[:n]:
-                try:
-                    ir = requests.get(photo["src"]["large2x"], timeout=12, headers=UA)
-                    if ir.ok:
-                        results.append(ir.content)
-                except Exception:
-                    pass
+                for size_key in ("large2x", "large", "medium"):
+                    try:
+                        ir = requests.get(photo["src"][size_key], timeout=12, headers=UA)
+                        if ir.ok:
+                            results.append(ir.content)
+                            break
+                    except Exception:
+                        pass
         except Exception:
             pass
 

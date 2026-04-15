@@ -153,22 +153,30 @@ def _build_campaign_assets(campaign: dict, slug: str, active: bool):
     """Generate HTML + all social images for a campaign. Returns (html, og_img_bytes)."""
     og_url = url_for("share_image", slug=slug, _external=True)
 
-    # Download car images for landing page cards (server-side to avoid hotlink blocks)
     cars = campaign.get("cars", [])
+
+    # ── Fetch photos once — used for both landing page and social images ─────────
+    # Try primary query first; if empty, retry with a broader fallback query.
+    photo_bytes_list = []
+    if cars:
+        q0 = (cars[0].get("image_query") or
+              f"{cars[0].get('make', '')} {cars[0].get('model', '')} car")
+        photo_bytes_list = fetch_multiple_photos(q0, n=3)
+        if not photo_bytes_list:
+            # Retry with simpler query in case the specific model name returned nothing
+            photo_bytes_list = fetch_multiple_photos(
+                f"{cars[0].get('make', 'luxury')} car", n=3
+            )
+
+    # ── Store car images + build landing page URLs ───────────────────────────────
     car_image_urls = []
-    photo_bytes_list = []  # up to 3 photos for social images
     for i, car in enumerate(cars):
-        query = car.get("image_query") or f"{car.get('make', '')} {car.get('model', '')} car"
-        # For the first car, fetch up to 3 photos (for social image variants)
         if i == 0:
-            try:
-                photo_bytes_list = fetch_multiple_photos(query, n=3)
-            except Exception:
-                photo_bytes_list = []
             img_bytes = photo_bytes_list[0] if photo_bytes_list else None
         else:
+            qi = car.get("image_query") or f"{car.get('make', '')} {car.get('model', '')} car"
             try:
-                img_bytes = download_car_image(query)
+                img_bytes = download_car_image(qi)
             except Exception:
                 img_bytes = None
         if img_bytes:
@@ -187,10 +195,15 @@ def _build_campaign_assets(campaign: dict, slug: str, active: bool):
     html = generate_html(campaign, active=active, og_image_url=og_url,
                          car_image_urls=car_image_urls)
 
-    # Generate up to 36 social images (4 layouts × 3 formats × up to 3 photo variants)
+    # ── Generate social images ───────────────────────────────────────────────────
+    # Pass None (not []) when no photos fetched so generate_social_images can use
+    # its own internal fallback instead of silently generating photo-less images.
     share_img = None
     try:
-        all_social = generate_social_images(campaign, photo_bytes_list=photo_bytes_list)
+        all_social = generate_social_images(
+            campaign,
+            photo_bytes_list=photo_bytes_list if photo_bytes_list else None
+        )
         share_img  = all_social.get("classic__og")
         with get_db() as conn:
             for key, data in all_social.items():
