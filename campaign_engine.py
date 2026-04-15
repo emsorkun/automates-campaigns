@@ -313,7 +313,7 @@ def _render_car_card(car: dict, offer: dict, index: int, image_url: str = "") ->
         price_html = ""
 
     if image_url:
-        img_style = f'background-image:url("{image_url}"); background-size:cover; background-position:center;'
+        img_style = f"background-image:url('{image_url}'); background-size:cover; background-position:center;"
         img_overlay = '<div class="card-img-overlay"></div>'
     else:
         img_style = 'background: linear-gradient(135deg, #1A1B22 0%, #0B0C10 100%);'

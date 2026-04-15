@@ -339,11 +339,11 @@ def serve_page(slug: str):
         html = row["html"]
 
     # Fix any absolute car-image URLs baked from a previous deployment
-    # e.g. http://localhost:5001/p/slug/img/0  →  /p/slug/img/0
+    # e.g. url("http://localhost:5001/p/slug/img/0")  →  url('/p/slug/img/0')
     import re as _re
     html = _re.sub(
         r'url\(["\']?https?://[^/]+(/p/[^"\')\s]+/img/\d+)["\']?\)',
-        lambda m: f'url("{m.group(1)}")',
+        lambda m: f"url('{m.group(1)}')",
         html
     )
 
