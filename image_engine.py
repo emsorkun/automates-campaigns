@@ -88,57 +88,77 @@ def _logo():
     return _logo_cache or None
 
 
-def _fetch_photo(query, orient="landscape"):
-    UA = {"User-Agent": "Mozilla/5.0 (compatible; AutoMatesCampaigns/1.0)"}
+def fetch_multiple_photos(query, n=3):
+    """
+    Download up to n car photos from Pexels (single API call).
+    Returns a list of bytes objects (may be shorter than n if fewer found).
+    Falls back to Unsplash / Pixabay for single photo if Pexels unavailable.
+    """
+    UA      = {"User-Agent": "Mozilla/5.0 (compatible; AutoMatesCampaigns/1.0)"}
+    results = []
 
     pexels_key = os.environ.get("PEXELS_API_KEY", "")
     if pexels_key:
         try:
             r = requests.get("https://api.pexels.com/v1/search",
                 headers={"Authorization": pexels_key},
-                params={"query": query + " luxury car", "per_page": 1,
-                        "orientation": orient},
+                params={"query": query + " luxury car", "per_page": n,
+                        "orientation": "landscape"},
                 timeout=8)
             photos = r.json().get("photos", []) if r.ok else []
-            if photos:
-                ir = requests.get(photos[0]["src"]["large2x"], timeout=12, headers=UA)
-                if ir.ok:
-                    return ir.content
+            for photo in photos[:n]:
+                try:
+                    ir = requests.get(photo["src"]["large2x"], timeout=12, headers=UA)
+                    if ir.ok:
+                        results.append(ir.content)
+                except Exception:
+                    pass
         except Exception:
             pass
 
-    unsplash_key = os.environ.get("UNSPLASH_ACCESS_KEY", "")
-    if unsplash_key:
-        try:
-            r = requests.get("https://api.unsplash.com/search/photos",
-                params={"query": query, "per_page": 1,
-                        "orientation": orient, "client_id": unsplash_key},
-                timeout=8)
-            results = r.json().get("results", []) if r.ok else []
-            if results:
-                ir = requests.get(results[0]["urls"]["regular"], timeout=12, headers=UA)
-                if ir.ok:
-                    return ir.content
-        except Exception:
-            pass
+    if not results:
+        # Unsplash single-photo fallback
+        unsplash_key = os.environ.get("UNSPLASH_ACCESS_KEY", "")
+        if unsplash_key:
+            try:
+                r = requests.get("https://api.unsplash.com/search/photos",
+                    params={"query": query, "per_page": 1, "orientation": "landscape",
+                            "client_id": unsplash_key},
+                    timeout=8)
+                results_us = r.json().get("results", []) if r.ok else []
+                if results_us:
+                    ir = requests.get(results_us[0]["urls"]["regular"], timeout=12, headers=UA)
+                    if ir.ok:
+                        results.append(ir.content)
+            except Exception:
+                pass
 
-    pixabay_key = os.environ.get("PIXABAY_API_KEY", "")
-    if pixabay_key:
-        try:
-            r = requests.get("https://pixabay.com/api/",
-                params={"key": pixabay_key, "q": query, "image_type": "photo",
-                        "orientation": "horizontal" if orient == "landscape" else "vertical",
-                        "per_page": 3, "safesearch": "true"},
-                timeout=8)
-            hits = r.json().get("hits", []) if r.ok else []
-            if hits:
-                ir = requests.get(hits[0]["largeImageURL"], timeout=12, headers=UA)
-                if ir.ok:
-                    return ir.content
-        except Exception:
-            pass
+    if not results:
+        pixabay_key = os.environ.get("PIXABAY_API_KEY", "")
+        if pixabay_key:
+            try:
+                r = requests.get("https://pixabay.com/api/",
+                    params={"key": pixabay_key, "q": query, "image_type": "photo",
+                            "orientation": "horizontal", "per_page": 3, "safesearch": "true"},
+                    timeout=8)
+                hits = r.json().get("hits", []) if r.ok else []
+                for hit in hits[:n]:
+                    try:
+                        ir = requests.get(hit["largeImageURL"], timeout=12, headers=UA)
+                        if ir.ok:
+                            results.append(ir.content)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
-    return None
+    return results
+
+
+def _fetch_photo(query, orient="landscape"):
+    """Single-photo download helper (backward compat)."""
+    photos = fetch_multiple_photos(query, n=1)
+    return photos[0] if photos else None
 
 
 def _fill(photo_bytes, W, H):
@@ -667,20 +687,28 @@ def _split(photo, campaign, W, H):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def generate_social_images(campaign, photo_bytes=None):
+def generate_social_images(campaign, photo_bytes=None, photo_bytes_list=None):
     """
-    Generate all 12 social images (4 layouts × 3 formats).
-    Returns dict keyed by "{layout}__{format}" -> JPEG bytes (or None on error).
+    Generate social images (4 layouts × 3 formats × up to 3 photo variants).
+    Returns dict keyed by "{layout}__{format}" for v1, "{layout}__{format}__v2" for v2, etc.
 
-    photo_bytes: optional pre-downloaded image bytes to avoid a duplicate API call.
+    photo_bytes_list: list of up to 3 bytes objects (preferred).
+    photo_bytes: single bytes object (backward compat — wraps into list).
     """
     cars  = campaign.get("cars", [])
     query = (cars[0].get("image_query") or
              f"{cars[0].get('make','')} {cars[0].get('model','')}".strip()
              if cars else "luxury car Dubai")
 
-    if photo_bytes is None:
-        photo_bytes = _fetch_photo(query, orient="landscape")
+    # Resolve photo list
+    if photo_bytes_list:
+        photos = photo_bytes_list[:3]
+    elif photo_bytes is not None:
+        photos = [photo_bytes]
+    else:
+        photos = fetch_multiple_photos(query, n=3)
+    if not photos:
+        photos = [None]
 
     layout_fns = {
         "classic":   _classic,
@@ -689,22 +717,27 @@ def generate_social_images(campaign, photo_bytes=None):
         "split":     _split,
     }
 
-    results = {}
-    for fmt_key, (W, H) in FORMATS.items():
-        car_img = None
-        if photo_bytes:
-            try:
-                car_img = _fill(photo_bytes, W, H)
-            except Exception:
-                pass
+    # Variant suffix: index 0 → "" (v1), 1 → "__v2", 2 → "__v3"
+    _suffix = ["", "__v2", "__v3"]
 
-        for layout_key, fn in layout_fns.items():
-            key = f"{layout_key}__{fmt_key}"
-            try:
-                img          = fn(car_img, campaign, W, H)
-                results[key] = _to_jpeg(img)
-            except Exception:
-                results[key] = None
+    results = {}
+    for vi, pb in enumerate(photos):
+        suffix = _suffix[vi]
+        for fmt_key, (W, H) in FORMATS.items():
+            car_img = None
+            if pb:
+                try:
+                    car_img = _fill(pb, W, H)
+                except Exception:
+                    pass
+
+            for layout_key, fn in layout_fns.items():
+                key = f"{layout_key}__{fmt_key}{suffix}"
+                try:
+                    img          = fn(car_img, campaign, W, H)
+                    results[key] = _to_jpeg(img)
+                except Exception:
+                    results[key] = None
 
     return results
 

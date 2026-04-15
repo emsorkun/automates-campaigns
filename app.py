@@ -11,7 +11,7 @@ import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, Response
 
 from campaign_engine import parse_campaign, edit_campaign, generate_html, download_car_image
-from image_engine import generate_share_image, generate_social_images, LAYOUT_LABELS, FORMAT_LABELS
+from image_engine import generate_share_image, generate_social_images, fetch_multiple_photos, LAYOUT_LABELS, FORMAT_LABELS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "automates-dev-key")
@@ -156,16 +156,22 @@ def _build_campaign_assets(campaign: dict, slug: str, active: bool):
     # Download car images for landing page cards (server-side to avoid hotlink blocks)
     cars = campaign.get("cars", [])
     car_image_urls = []
-    first_photo_bytes = None
+    photo_bytes_list = []  # up to 3 photos for social images
     for i, car in enumerate(cars):
         query = car.get("image_query") or f"{car.get('make', '')} {car.get('model', '')} car"
-        try:
-            img_bytes = download_car_image(query)
-        except Exception:
-            img_bytes = None
+        # For the first car, fetch up to 3 photos (for social image variants)
+        if i == 0:
+            try:
+                photo_bytes_list = fetch_multiple_photos(query, n=3)
+            except Exception:
+                photo_bytes_list = []
+            img_bytes = photo_bytes_list[0] if photo_bytes_list else None
+        else:
+            try:
+                img_bytes = download_car_image(query)
+            except Exception:
+                img_bytes = None
         if img_bytes:
-            if i == 0:
-                first_photo_bytes = img_bytes
             try:
                 with get_db() as conn:
                     conn.execute(
@@ -175,16 +181,16 @@ def _build_campaign_assets(campaign: dict, slug: str, active: bool):
                     conn.commit()
             except Exception:
                 img_bytes = None
-        url = url_for("car_image", slug=slug, idx=i, _external=True) if img_bytes else ""
+        url = url_for("car_image", slug=slug, idx=i) if img_bytes else ""
         car_image_urls.append(url)
 
     html = generate_html(campaign, active=active, og_image_url=og_url,
                          car_image_urls=car_image_urls)
 
-    # Generate all 12 social images (reuse already-downloaded photo to save an API call)
+    # Generate up to 36 social images (4 layouts × 3 formats × up to 3 photo variants)
     share_img = None
     try:
-        all_social = generate_social_images(campaign, photo_bytes=first_photo_bytes)
+        all_social = generate_social_images(campaign, photo_bytes_list=photo_bytes_list)
         share_img  = all_social.get("classic__og")
         with get_db() as conn:
             for key, data in all_social.items():
@@ -226,8 +232,10 @@ def share_image(slug: str):
 @app.route("/p/<slug>/social/<key>.jpg")
 def social_image_file(slug: str, key: str):
     """Serve one of the 12 social images. key format: '{layout}__{format}'"""
-    valid = {f"{l}__{f}" for l in ("classic", "bold", "cinematic", "split")
-             for f in ("og", "post", "story")}
+    valid = {f"{l}__{f}{v}"
+             for l in ("classic", "bold", "cinematic", "split")
+             for f in ("og", "post", "story")
+             for v in ("", "__v2", "__v3")}
     if key not in valid:
         return "Not found", 404
     try:

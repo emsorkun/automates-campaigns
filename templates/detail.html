@@ -369,6 +369,14 @@
     border: 1px solid var(--border);
   }
 
+  .si-variant-hidden { display: none; }
+
+  .si-vpill.active {
+    background: var(--gold-dim);
+    border-color: var(--gold) !important;
+    color: var(--gold) !important;
+  }
+
   .si-actions {
     display: flex;
     align-items: center;
@@ -606,12 +614,12 @@
 
           {% if not social_keys %}
           <div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;">
-            Social images not generated yet — re-save this campaign to generate all 12 formats.
+            Social images not generated yet — re-save this campaign to generate all formats.
           </div>
           {% else %}
 
           <p style="font-size:12px;color:var(--muted);margin-bottom:16px">
-            4 layouts × 3 formats — download and post directly.
+            4 layouts × 3 formats × up to 3 photo options — pick and download.
           </p>
 
           <!-- Layout selector tabs -->
@@ -642,24 +650,50 @@
 
             <!-- Format panes -->
             {% for fkey, flabel in format_labels.items() %}
-            {% set img_key = lkey + '__' + fkey %}
             <div class="si-fmt-pane {% if loop.first %}active{% endif %}"
                  data-sfpane="{{ fkey }}">
 
-              {% if img_key in social_keys %}
-              <div class="si-img-wrap {% if fkey == 'story' %}story-wrap{% endif %}">
-                <img
-                  src="{{ url_for('social_image_file', slug=campaign.slug, key=img_key) }}"
-                  alt="{{ llabel }} {{ flabel }}"
-                  loading="lazy"
-                  onerror="this.parentElement.innerHTML='<div class=si-img-missing>Image failed to load — re-save campaign.</div>'"
-                >
+              {# Build variant list: check which photo versions exist #}
+              {% set variants = [] %}
+              {% if (lkey + '__' + fkey) in social_keys %}{% set _ = variants.append(('', 'Photo 1')) %}{% endif %}
+              {% if (lkey + '__' + fkey + '__v2') in social_keys %}{% set _ = variants.append(('__v2', 'Photo 2')) %}{% endif %}
+              {% if (lkey + '__' + fkey + '__v3') in social_keys %}{% set _ = variants.append(('__v3', 'Photo 3')) %}{% endif %}
+
+              {% if variants %}
+              <!-- Photo variant switcher -->
+              {% if variants|length > 1 %}
+              <div class="si-variant-pills" style="display:flex;gap:6px;margin-bottom:12px;">
+                {% for vsuffix, vlabel in variants %}
+                <button class="si-vpill {% if loop.first %}active{% endif %}"
+                        data-vpill="{{ vsuffix }}"
+                        style="padding:4px 12px;border-radius:100px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;transition:all 0.15s">
+                  {{ vlabel }}
+                </button>
+                {% endfor %}
               </div>
-              <div class="si-actions">
-                <a href="{{ url_for('social_image_file', slug=campaign.slug, key=img_key) }}?dl=1"
-                   class="btn btn-gold btn-sm">⬇ Download</a>
-                <span class="si-dim">{{ flabel }}</span>
+              {% endif %}
+
+              <!-- One image block per variant -->
+              {% for vsuffix, vlabel in variants %}
+              {% set img_key = lkey + '__' + fkey + vsuffix %}
+              <div class="si-variant-block {% if not loop.first %}si-variant-hidden{% endif %}"
+                   data-vblock="{{ vsuffix }}">
+                <div class="si-img-wrap {% if fkey == 'story' %}story-wrap{% endif %}">
+                  <img
+                    src="{{ url_for('social_image_file', slug=campaign.slug, key=img_key) }}"
+                    alt="{{ llabel }} {{ flabel }} {{ vlabel }}"
+                    loading="lazy"
+                    onerror="this.parentElement.innerHTML='<div class=si-img-missing>Image failed to load — re-save campaign.</div>'"
+                  >
+                </div>
+                <div class="si-actions">
+                  <a href="{{ url_for('social_image_file', slug=campaign.slug, key=img_key) }}?dl=1"
+                     class="btn btn-gold btn-sm">⬇ Download</a>
+                  <span class="si-dim">{{ flabel }}</span>
+                </div>
               </div>
+              {% endfor %}
+
               {% else %}
               <div class="si-img-missing">
                 Not generated — re-save the campaign to generate all formats.
@@ -760,6 +794,19 @@
         pill.classList.add('active');
         var pane = panel.querySelector('[data-sfpane="' + pill.dataset.sfmt + '"]');
         if (pane) pane.classList.add('active');
+      });
+    });
+  });
+
+  // ── Social images: photo variant pills (scoped per format pane) ─
+  document.querySelectorAll('.si-fmt-pane').forEach(function(pane) {
+    pane.querySelectorAll('.si-vpill').forEach(function(pill) {
+      pill.addEventListener('click', function() {
+        pane.querySelectorAll('.si-vpill').forEach(function(p){ p.classList.remove('active'); });
+        pane.querySelectorAll('.si-variant-block').forEach(function(b){ b.classList.add('si-variant-hidden'); });
+        pill.classList.add('active');
+        var block = pane.querySelector('[data-vblock="' + pill.dataset.vpill + '"]');
+        if (block) block.classList.remove('si-variant-hidden');
       });
     });
   });
