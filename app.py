@@ -11,6 +11,7 @@ import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, Response
 
 from campaign_engine import parse_campaign, edit_campaign, generate_html
+from image_engine import generate_share_image
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "automates-dev-key")
@@ -44,20 +45,24 @@ def init_db():
     with get_db() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS campaigns (
-                slug       TEXT PRIMARY KEY,
-                title      TEXT NOT NULL,
-                data       TEXT NOT NULL,
-                html       TEXT NOT NULL DEFAULT '',
-                active     INTEGER NOT NULL DEFAULT 1,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                slug         TEXT PRIMARY KEY,
+                title        TEXT NOT NULL,
+                data         TEXT NOT NULL,
+                html         TEXT NOT NULL DEFAULT '',
+                share_image  BLOB,
+                active       INTEGER NOT NULL DEFAULT 1,
+                created_at   TEXT NOT NULL,
+                updated_at   TEXT NOT NULL
             )
         """)
-        # Add html column if upgrading from old schema
-        try:
-            conn.execute("ALTER TABLE campaigns ADD COLUMN html TEXT NOT NULL DEFAULT ''")
-        except Exception:
-            pass
+        for col, definition in [
+            ("html",        "TEXT NOT NULL DEFAULT ''"),
+            ("share_image", "BLOB"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE campaigns ADD COLUMN {col} {definition}")
+            except Exception:
+                pass
         conn.commit()
 
 
@@ -112,7 +117,35 @@ def _row_to_campaign(row) -> dict:
     }
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _build_campaign_assets(campaign: dict, slug: str, active: bool):
+    """Generate HTML + share image for a campaign. Returns (html, img_bytes)."""
+    og_url = url_for("share_image", slug=slug, _external=True)
+    html   = generate_html(campaign, active=active, og_image_url=og_url)
+    try:
+        img = generate_share_image(campaign)
+    except Exception:
+        img = None
+    return html, img
+
+
 # ── Public landing page route ─────────────────────────────────────────────────
+
+@app.route("/p/<slug>/share.png")
+def share_image(slug: str):
+    """Serve the pre-generated social share image (1200×630 JPEG)."""
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT share_image FROM campaigns WHERE slug = ?", (slug,)
+            ).fetchone()
+    except Exception:
+        return "Not found", 404
+    if row is None or not row["share_image"]:
+        return "Not found", 404
+    return Response(row["share_image"], mimetype="image/jpeg")
+
 
 @app.route("/p/<slug>")
 def serve_page(slug: str):
@@ -182,7 +215,7 @@ def create():
         return redirect(url_for("new_campaign"))
 
     try:
-        html = generate_html(campaign, active=True)
+        html, img = _build_campaign_assets(campaign, slug, active=True)
     except Exception as e:
         flash(f"Failed to generate page: {e}", "error")
         return redirect(url_for("new_campaign"))
@@ -192,10 +225,10 @@ def create():
         with get_db() as conn:
             conn.execute(
                 """INSERT OR REPLACE INTO campaigns
-                   (slug, title, data, html, active, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, 1, ?, ?)""",
+                   (slug, title, data, html, share_image, active, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, 1, ?, ?)""",
                 (slug, campaign.get("campaign_title", slug),
-                 json.dumps(campaign), html, now, now)
+                 json.dumps(campaign), html, img, now, now)
             )
             conn.commit()
     except Exception as e:
@@ -261,7 +294,7 @@ def edit(slug: str):
         return redirect(url_for("detail", slug=slug))
 
     try:
-        html = generate_html(updated_data, active=bool(row["active"]))
+        html, img = _build_campaign_assets(updated_data, slug, active=bool(row["active"]))
     except Exception as e:
         flash(f"Failed to regenerate page: {e}", "error")
         return redirect(url_for("detail", slug=slug))
@@ -270,11 +303,9 @@ def edit(slug: str):
     try:
         with get_db() as conn:
             conn.execute(
-                "UPDATE campaigns SET data=?, html=?, title=?, updated_at=? WHERE slug=?",
-                (json.dumps(updated_data),
-                 html,
-                 updated_data.get("campaign_title", slug),
-                 now, slug)
+                "UPDATE campaigns SET data=?, html=?, share_image=?, title=?, updated_at=? WHERE slug=?",
+                (json.dumps(updated_data), html, img,
+                 updated_data.get("campaign_title", slug), now, slug)
             )
             conn.commit()
     except Exception as e:

@@ -234,6 +234,17 @@ def fetch_car_image(query: str) -> str:
         except Exception:
             pass
 
+    # Fallback: loremflickr — free, no API key, real Flickr car photos
+    try:
+        tags = ",".join(query.split()[:5])
+        url  = f"https://loremflickr.com/1200/800/{tags}"
+        r    = requests.get(url, timeout=10, allow_redirects=True, stream=True)
+        r.close()
+        if r.status_code == 200:
+            return r.url  # resolved Flickr CDN URL (stable)
+    except Exception:
+        pass
+
     return ""
 
 
@@ -280,7 +291,7 @@ def _render_car_card(car: dict, offer: dict, index: int) -> str:
     </div>"""
 
 
-def generate_html(campaign: dict, active: bool = True) -> str:
+def generate_html(campaign: dict, active: bool = True, og_image_url: str = "") -> str:
     """Generate full branded HTML landing page for a campaign."""
     cars = campaign["cars"]
     offer = campaign["offer"]
@@ -334,6 +345,17 @@ def generate_html(campaign: dict, active: bool = True) -> str:
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{campaign['campaign_title']} \u2013 AutoMates</title>
+<meta name="description" content="{campaign.get('subheadline','')}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{campaign['campaign_title']} \u2013 AutoMates Dubai">
+<meta property="og:description" content="{campaign.get('subheadline','')}">
+<meta property="og:image" content="{og_image_url}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{campaign['campaign_title']} \u2013 AutoMates Dubai">
+<meta name="twitter:description" content="{campaign.get('subheadline','')}">
+<meta name="twitter:image" content="{og_image_url}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
