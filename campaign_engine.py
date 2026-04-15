@@ -251,9 +251,7 @@ def _make_headline_html(headline: str) -> str:
 
 
 def download_car_image(query: str) -> bytes | None:
-    """Download raw image bytes for a car query. Tries Pexels → Unsplash → Pixabay → loremflickr."""
-    import hashlib
-
+    """Download raw image bytes for a car query. Tries Pexels → Unsplash → Pixabay."""
     UA = {"User-Agent": "Mozilla/5.0 (compatible; AutoMatesCampaigns/1.0)"}
 
     if PEXELS_API_KEY:
@@ -297,19 +295,6 @@ def download_car_image(query: str) -> bytes | None:
                     return ir.content
         except Exception:
             pass
-
-    # Last resort: loremflickr with car-specific tags + download bytes
-    try:
-        lock = int(hashlib.md5(query.encode()).hexdigest()[:6], 16) % 9999 + 1
-        # Force car/automobile tags so we don't get cats
-        make_model = " ".join(query.split()[:2])
-        tags = f"{make_model.replace(' ', ',')},car,automobile,vehicle"
-        r = requests.get(f"https://loremflickr.com/1200/800/{tags}?lock={lock}",
-            timeout=12, allow_redirects=True, headers=UA)
-        if r.ok and r.headers.get("content-type", "").startswith("image"):
-            return r.content
-    except Exception:
-        pass
 
     return None
 
