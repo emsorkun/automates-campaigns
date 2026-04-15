@@ -11,7 +11,7 @@ import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, Response
 
 from campaign_engine import parse_campaign, edit_campaign, generate_html, download_car_image
-from image_engine import generate_share_image
+from image_engine import generate_share_image, generate_social_images, LAYOUT_LABELS, FORMAT_LABELS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "automates-dev-key")
@@ -63,6 +63,28 @@ def init_db():
                 PRIMARY KEY (slug, idx)
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS social_images (
+                slug TEXT NOT NULL,
+                key  TEXT NOT NULL,
+                data BLOB NOT NULL,
+                PRIMARY KEY (slug, key)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS analytics (
+                id    INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug  TEXT NOT NULL,
+                event TEXT NOT NULL,
+                ts    TEXT NOT NULL,
+                ua    TEXT,
+                ref   TEXT
+            )
+        """)
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_analytics_slug ON analytics(slug, event, ts)")
+        except Exception:
+            pass
         for col, definition in [
             ("html",        "TEXT NOT NULL DEFAULT ''"),
             ("share_image", "BLOB"),
@@ -128,12 +150,13 @@ def _row_to_campaign(row) -> dict:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _build_campaign_assets(campaign: dict, slug: str, active: bool):
-    """Generate HTML + share image for a campaign. Returns (html, img_bytes)."""
+    """Generate HTML + all social images for a campaign. Returns (html, og_img_bytes)."""
     og_url = url_for("share_image", slug=slug, _external=True)
 
-    # Download car images server-side so we can serve them ourselves (avoids hotlink blocks)
+    # Download car images for landing page cards (server-side to avoid hotlink blocks)
     cars = campaign.get("cars", [])
     car_image_urls = []
+    first_photo_bytes = None
     for i, car in enumerate(cars):
         query = car.get("image_query") or f"{car.get('make', '')} {car.get('model', '')} car"
         try:
@@ -141,7 +164,8 @@ def _build_campaign_assets(campaign: dict, slug: str, active: bool):
         except Exception:
             img_bytes = None
         if img_bytes:
-            # Store in DB via a separate table; use slug+index as key
+            if i == 0:
+                first_photo_bytes = img_bytes
             try:
                 with get_db() as conn:
                     conn.execute(
@@ -154,12 +178,29 @@ def _build_campaign_assets(campaign: dict, slug: str, active: bool):
         url = url_for("car_image", slug=slug, idx=i, _external=True) if img_bytes else ""
         car_image_urls.append(url)
 
-    html = generate_html(campaign, active=active, og_image_url=og_url, car_image_urls=car_image_urls)
+    html = generate_html(campaign, active=active, og_image_url=og_url,
+                         car_image_urls=car_image_urls)
+
+    # Generate all 12 social images (reuse already-downloaded photo to save an API call)
+    share_img = None
     try:
-        img = generate_share_image(campaign)
+        all_social = generate_social_images(campaign, photo_bytes=first_photo_bytes)
+        share_img  = all_social.get("classic__og")
+        with get_db() as conn:
+            for key, data in all_social.items():
+                if data:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO social_images (slug, key, data) VALUES (?, ?, ?)",
+                        (slug, key, data)
+                    )
+            conn.commit()
     except Exception:
-        img = None
-    return html, img
+        try:
+            share_img = generate_share_image(campaign)
+        except Exception:
+            pass
+
+    return html, share_img
 
 
 # ── Public landing page route ─────────────────────────────────────────────────
@@ -180,6 +221,48 @@ def share_image(slug: str):
     if request.args.get("dl"):
         headers["Content-Disposition"] = f"attachment; filename={slug}-social.jpg"
     return Response(row["share_image"], mimetype="image/jpeg", headers=headers)
+
+
+@app.route("/p/<slug>/social/<key>.jpg")
+def social_image_file(slug: str, key: str):
+    """Serve one of the 12 social images. key format: '{layout}__{format}'"""
+    valid = {f"{l}__{f}" for l in ("classic", "bold", "cinematic", "split")
+             for f in ("og", "post", "story")}
+    if key not in valid:
+        return "Not found", 404
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT data FROM social_images WHERE slug=? AND key=?", (slug, key)
+            ).fetchone()
+    except Exception:
+        return "Not found", 404
+    if row is None or not row["data"]:
+        return "Not found", 404
+    headers = {}
+    if request.args.get("dl"):
+        headers["Content-Disposition"] = f"attachment; filename={slug}-{key}.jpg"
+    return Response(row["data"], mimetype="image/jpeg", headers=headers)
+
+
+@app.route("/p/<slug>/track")
+def track_event(slug: str):
+    """Beacon endpoint for CTA click tracking."""
+    event = request.args.get("event", "")
+    if event not in ("cta_whatsapp", "cta_call"):
+        return "", 204
+    try:
+        with get_db() as conn:
+            conn.execute(
+                "INSERT INTO analytics (slug, event, ts, ua, ref) VALUES (?,?,?,?,?)",
+                (slug, event, datetime.datetime.utcnow().isoformat(),
+                 request.headers.get("User-Agent", "")[:255],
+                 request.headers.get("Referer", "")[:255])
+            )
+            conn.commit()
+    except Exception:
+        pass
+    return "", 204
 
 
 @app.route("/p/<slug>/img/<int:idx>")
@@ -210,6 +293,19 @@ def serve_page(slug: str):
 
     if row is None:
         return "Not found", 404
+
+    # Track impression (non-blocking)
+    try:
+        with get_db() as conn:
+            conn.execute(
+                "INSERT INTO analytics (slug, event, ts, ua, ref) VALUES (?,?,?,?,?)",
+                (slug, "view", datetime.datetime.utcnow().isoformat(),
+                 request.headers.get("User-Agent", "")[:255],
+                 request.headers.get("Referer", "")[:255])
+            )
+            conn.commit()
+    except Exception:
+        pass
 
     # If toggled off, regenerate with the expired overlay on the fly
     if not row["active"]:
@@ -289,6 +385,40 @@ def create():
     return redirect(url_for("detail", slug=slug))
 
 
+def _get_analytics(slug: str) -> dict:
+    import datetime as dt
+    try:
+        with get_db() as conn:
+            views  = conn.execute(
+                "SELECT COUNT(*) FROM analytics WHERE slug=? AND event='view'", (slug,)
+            ).fetchone()[0]
+            clicks = conn.execute(
+                "SELECT COUNT(*) FROM analytics WHERE slug=? AND event IN ('cta_whatsapp','cta_call')",
+                (slug,)
+            ).fetchone()[0]
+            rows = conn.execute(
+                """SELECT date(ts) d, COUNT(*) n FROM analytics
+                   WHERE slug=? AND event='view' AND ts >= datetime('now','-7 days')
+                   GROUP BY date(ts) ORDER BY d""",
+                (slug,)
+            ).fetchall()
+    except Exception:
+        return {"views": 0, "clicks": 0, "ctr": 0, "daily": [], "max_daily": 1}
+
+    daily_map = {r["d"]: r["n"] for r in rows}
+    today = dt.date.today()
+    daily = []
+    for i in range(6, -1, -1):
+        d  = today - dt.timedelta(days=i)
+        ds = d.isoformat()
+        daily.append({"date": ds, "label": d.strftime("%a"), "count": daily_map.get(ds, 0)})
+
+    ctr       = round(clicks / views * 100, 1) if views > 0 else 0
+    max_daily = max((x["count"] for x in daily), default=1)
+    return {"views": views, "clicks": clicks, "ctr": ctr,
+            "daily": daily, "max_daily": max(max_daily, 1)}
+
+
 @app.route("/campaigns/<slug>")
 def detail(slug: str):
     try:
@@ -305,9 +435,22 @@ def detail(slug: str):
         flash("Campaign not found.", "error")
         return redirect(url_for("index"))
 
-    campaign = _row_to_campaign(row)
+    campaign  = _row_to_campaign(row)
     utm_links = _build_utm_links(slug)
-    return render_template("detail.html", campaign=campaign, utm_links=utm_links)
+    analytics = _get_analytics(slug)
+
+    try:
+        with get_db() as conn:
+            si_rows = conn.execute(
+                "SELECT key FROM social_images WHERE slug=?", (slug,)
+            ).fetchall()
+        social_keys = {r["key"] for r in si_rows}
+    except Exception:
+        social_keys = set()
+
+    return render_template("detail.html", campaign=campaign, utm_links=utm_links,
+                           analytics=analytics, social_keys=social_keys,
+                           layout_labels=LAYOUT_LABELS, format_labels=FORMAT_LABELS)
 
 
 @app.route("/campaigns/<slug>/edit", methods=["POST"])
@@ -404,6 +547,8 @@ def delete_campaign(slug: str):
         with get_db() as conn:
             conn.execute("DELETE FROM campaigns WHERE slug=?", (slug,))
             conn.execute("DELETE FROM car_images WHERE slug=?", (slug,))
+            conn.execute("DELETE FROM social_images WHERE slug=?", (slug,))
+            conn.execute("DELETE FROM analytics WHERE slug=?", (slug,))
             conn.commit()
     except Exception as e:
         flash(f"Failed to delete: {e}", "error")

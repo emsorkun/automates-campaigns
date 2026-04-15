@@ -3,56 +3,396 @@
 
 {% block extra_head %}
 <style>
-  .detail-header {
+  /* ── Full-viewport workspace ──────────────────────────────────── */
+  html, body { height: 100%; overflow: hidden; }
+
+  /* Flash messages float as overlay on top of workspace */
+  .flash-container {
+    position: fixed;
+    top: 64px;
+    left: 0; right: 0;
+    z-index: 500;
+    pointer-events: none;
+    padding: 8px 24px 0;
+  }
+  .flash { pointer-events: auto; }
+
+  .workspace {
+    position: fixed;
+    top: 64px; left: 0; right: 0; bottom: 0;
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 8px;
+    overflow: hidden;
   }
 
-  .detail-title {
-    font-size: 26px;
+  /* ── Left panel ───────────────────────────────────────────────── */
+  .left-panel {
+    width: 320px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+  }
+
+  /* campaign top-bar inside left panel */
+  .campaign-bar {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .campaign-bar-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
     font-weight: 800;
-    letter-spacing: -0.5px;
-    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .detail-meta {
-    font-size: 13px;
+  .campaign-bar-meta {
+    font-size: 12px;
     color: var(--muted);
     display: flex;
     align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-
-  .detail-cars {
-    color: var(--light);
-  }
-
-  .detail-offer {
-    color: var(--gold);
-    font-weight: 600;
-  }
-
-  .detail-actions {
-    display: flex;
     gap: 8px;
     flex-wrap: wrap;
+  }
+
+  .campaign-bar-actions {
+    display: flex;
+    gap: 6px;
     align-items: center;
+    flex-wrap: wrap;
   }
 
-  /* UTM table */
-  .utm-table {
+  /* ── Analytics card ───────────────────────────────────────────── */
+  .analytics-section {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .analytics-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 0;
+    margin-bottom: 12px;
+  }
+
+  .stat-item {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+
+  .stat-item:first-child { border-radius: 8px 0 0 8px; }
+  .stat-item:last-child  { border-radius: 0 8px 8px 0; }
+  .stat-item + .stat-item { border-left: none; }
+
+  .stat-val {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--white);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-lbl {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+
+  /* Mini bar chart */
+  .mini-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 48px;
+  }
+
+  .chart-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+
+  .chart-bar {
     width: 100%;
-    border-collapse: collapse;
+    background: var(--gold-dim);
+    border: 1px solid rgba(200,169,97,0.3);
+    border-radius: 2px 2px 0 0;
+    min-height: 3px;
+    transition: background 0.15s;
   }
 
-  .utm-table th {
+  .chart-bar:hover { background: rgba(200,169,97,0.5); }
+  .chart-bar.today { background: rgba(200,169,97,0.6); border-color: var(--gold); }
+
+  .chart-day {
+    font-size: 8px;
+    color: var(--muted);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+  }
+
+  /* ── Edit section ─────────────────────────────────────────────── */
+  .edit-section {
+    padding: 16px 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .edit-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .edit-section textarea {
+    flex: 1;
+    min-height: 120px;
+    resize: none;
+    font-size: 13px;
+  }
+
+  /* ── Right panel ──────────────────────────────────────────────── */
+  .right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--surface);
+    padding: 0 4px;
+  }
+
+  .tab-btn {
+    padding: 0 22px;
+    height: 46px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+    cursor: pointer;
+    border: none;
+    background: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+
+  .tab-btn:hover { color: var(--light); }
+
+  .tab-btn.active {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+  }
+
+  /* Tab panes */
+  .tab-content { flex: 1; overflow: hidden; }
+
+  .tab-pane {
+    display: none;
+    height: 100%;
+    flex-direction: column;
+  }
+
+  .tab-pane.active { display: flex; }
+
+  /* ── Preview tab ──────────────────────────────────────────────── */
+  .iframe-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .url-pill {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: var(--light);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .preview-iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: #fff;
+  }
+
+  /* ── Social images tab ────────────────────────────────────────── */
+  .social-tab-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+
+  .si-layout-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .si-ltab {
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-family: 'Montserrat', sans-serif;
     font-size: 11px;
     font-weight: 600;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    background: transparent;
+    transition: all 0.15s;
+  }
+
+  .si-ltab.active {
+    background: var(--gold-dim);
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
+  .si-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-left: 5px;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+
+  .si-badge-std  { background: rgba(176,176,196,0.15); color: var(--light); }
+  .si-badge-cr   { background: var(--gold-dim); color: var(--gold); }
+
+  .si-layout-panel { display: none; }
+  .si-layout-panel.active { display: block; }
+
+  .si-format-pills {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .si-fpill {
+    padding: 5px 14px;
+    border-radius: 100px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    background: transparent;
+    transition: all 0.15s;
+  }
+
+  .si-fpill.active {
+    background: var(--gold-dim);
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
+  .si-fmt-pane { display: none; }
+  .si-fmt-pane.active { display: block; }
+
+  .si-img-wrap img {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    display: block;
+  }
+
+  .si-img-wrap.story-wrap img {
+    max-height: 520px;
+    width: auto;
+    margin: 0 auto;
+    display: block;
+  }
+
+  .si-img-missing {
+    padding: 40px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    background: var(--card);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .si-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .si-dim {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ── UTM Links tab ────────────────────────────────────────────── */
+  .links-tab-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+
+  .utm-table { width: 100%; border-collapse: collapse; }
+
+  .utm-table th {
+    font-size: 10px;
+    font-weight: 700;
     letter-spacing: 2px;
     text-transform: uppercase;
     color: var(--muted);
@@ -62,29 +402,27 @@
   }
 
   .utm-table td {
-    padding: 14px 16px 14px 0;
+    padding: 12px 16px 12px 0;
     border-bottom: 1px solid rgba(200,169,97,0.06);
     vertical-align: middle;
   }
 
-  .utm-table tr:last-child td {
-    border-bottom: none;
-  }
+  .utm-table tr:last-child td { border-bottom: none; }
 
   .utm-platform {
     display: flex;
     align-items: center;
     gap: 8px;
     font-family: 'Montserrat', sans-serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
-    min-width: 130px;
+    min-width: 120px;
   }
 
   .utm-url {
     font-family: 'Courier New', monospace;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--light);
     word-break: break-all;
     line-height: 1.5;
@@ -94,45 +432,35 @@
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--gold);
-    padding: 6px 14px;
-    border-radius: 8px;
+    padding: 5px 12px;
+    border-radius: 6px;
     font-family: 'Montserrat', sans-serif;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s;
     white-space: nowrap;
   }
 
   .copy-btn:hover { background: var(--gold-dim); }
   .copy-btn.copied { color: var(--green); border-color: rgba(46,204,113,0.3); }
 
-  /* Edit section */
-  .edit-help {
-    font-size: 13px;
-    color: var(--muted);
-    margin-bottom: 16px;
-    line-height: 1.6;
-  }
-
-  /* Loading overlay */
+  /* ── Loading overlay ──────────────────────────────────────────── */
   #loading-overlay {
     display: none;
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     background: rgba(11,12,16,0.92);
-    z-index: 999;
+    z-index: 9999;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 24px;
+    gap: 20px;
   }
 
   #loading-overlay.visible { display: flex; }
 
   .spinner {
-    width: 48px;
-    height: 48px;
+    width: 44px; height: 44px;
     border: 3px solid var(--border);
     border-top-color: var(--gold);
     border-radius: 50%;
@@ -143,166 +471,313 @@
 
   .loading-text {
     font-family: 'Montserrat', sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     letter-spacing: 2px;
     text-transform: uppercase;
     color: var(--gold);
   }
-
-  .loading-sub {
-    font-size: 13px;
-    color: var(--muted);
-    margin-top: -12px;
-  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-  <a href="{{ url_for('index') }}" class="back-link">← All Campaigns</a>
+<div class="workspace">
 
-  <!-- Campaign header -->
-  <div class="section-card">
-    <div class="detail-header">
-      <div>
-        <h1 class="detail-title">{{ campaign.title }}</h1>
-        <div class="detail-meta">
-          <span class="detail-cars">{{ campaign.cars_str }}</span>
-          <span>·</span>
-          <span class="detail-offer">{{ campaign.offer_label }}</span>
-          {% if campaign.validity_label %}
-            <span>·</span>
-            <span>⏳ {{ campaign.validity_label }}</span>
-          {% endif %}
+  <!-- ── LEFT PANEL ──────────────────────────────────────────────── -->
+  <div class="left-panel">
+
+    <!-- Campaign identity + actions -->
+    <div class="campaign-bar">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <a href="{{ url_for('index') }}" style="color:var(--muted);font-size:13px;text-decoration:none;flex-shrink:0">←</a>
+        <div class="campaign-bar-title">{{ campaign.title }}</div>
+        <span class="status-badge {% if campaign.active %}status-live{% else %}status-off{% endif %}" style="flex-shrink:0;font-size:9px">
+          {{ 'Live' if campaign.active else 'Off' }}
+        </span>
+      </div>
+      <div class="campaign-bar-meta">
+        <span style="color:var(--light)">{{ campaign.cars_str }}</span>
+        <span>·</span>
+        <span style="color:var(--gold);font-weight:600">{{ campaign.offer_label }}</span>
+        {% if campaign.validity_label %}
+          <span>· ⏳ {{ campaign.validity_label }}</span>
+        {% endif %}
+      </div>
+      <div class="campaign-bar-actions">
+        <a href="{{ campaign.preview_url }}" target="_blank" class="btn btn-outline btn-sm">Open ↗</a>
+
+        <form method="POST" action="{{ url_for('toggle', slug=campaign.slug) }}" style="display:inline">
+          <button type="submit" class="btn btn-sm {% if campaign.active %}btn-danger{% else %}btn-outline{% endif %}">
+            {{ 'Turn Off' if campaign.active else 'Turn On' }}
+          </button>
+        </form>
+
+        <form method="POST" action="{{ url_for('delete_campaign', slug=campaign.slug) }}"
+              style="display:inline"
+              onsubmit="return confirm('Delete this campaign? This cannot be undone.')">
+          <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Analytics -->
+    <div class="analytics-section">
+      <div class="analytics-label">Analytics · Last 30 days</div>
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-val">{{ analytics.views }}</div>
+          <div class="stat-lbl">👁 Views</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">{{ analytics.clicks }}</div>
+          <div class="stat-lbl">📲 Clicks</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">{{ analytics.ctr }}%</div>
+          <div class="stat-lbl">CTR</div>
         </div>
       </div>
-      <span class="status-badge {% if campaign.active %}status-live{% else %}status-off{% endif %}">
-        {{ 'Live' if campaign.active else 'Off' }}
-      </span>
-    </div>
-
-    <div class="detail-actions" style="margin-top:20px">
-      <a href="{{ campaign.preview_url }}" target="_blank" class="btn btn-outline btn-sm">
-        Preview ↗
-      </a>
-
-      <form method="POST" action="{{ url_for('toggle', slug=campaign.slug) }}" style="display:inline">
-        <button type="submit" class="btn btn-sm {% if campaign.active %}btn-danger{% else %}btn-outline{% endif %}">
-          {{ 'Turn Off' if campaign.active else 'Turn On' }}
-        </button>
-      </form>
-
-      <form method="POST" action="{{ url_for('delete_campaign', slug=campaign.slug) }}"
-            style="display:inline"
-            onsubmit="return confirm('Delete this campaign? This cannot be undone.')">
-        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- UTM Links -->
-  <div class="section-card">
-    <div class="section-title">UTM Links</div>
-    <table class="utm-table">
-      <thead>
-        <tr>
-          <th>Platform</th>
-          <th>URL</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for link in utm_links %}
-        <tr>
-          <td>
-            <div class="utm-platform">
-              {{ link.platform.icon }}
-              {{ link.platform.label }}
-            </div>
-          </td>
-          <td>
-            <div class="utm-url">{{ link.url }}</div>
-          </td>
-          <td>
-            <button class="copy-btn" data-url="{{ link.url }}">Copy</button>
-          </td>
-        </tr>
+      {% if analytics.max_daily > 0 %}
+      <div class="mini-chart">
+        {% for day in analytics.daily %}
+        <div class="chart-col" title="{{ day.date }}: {{ day.count }} views">
+          <div class="chart-bar {% if loop.last %}today{% endif %}"
+               style="height:{{ [((day.count / analytics.max_daily) * 40)|int, 3]|max }}px">
+          </div>
+          <div class="chart-day">{{ day.label }}</div>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Social Media Image -->
-  <div class="section-card">
-    <div class="section-title">Social Media Image</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
-      1200 × 630 · Ready to post on Instagram, Facebook, Twitter, LinkedIn
-    </p>
-    <img
-      src="{{ url_for('share_image', slug=campaign.slug) }}"
-      alt="Social share image"
-      style="width:100%;border-radius:10px;border:1px solid var(--border);display:block;margin-bottom:16px"
-      onerror="this.parentElement.querySelector('.img-error').style.display='block';this.style.display='none'"
-    >
-    <div class="img-error" style="display:none;padding:32px;text-align:center;color:var(--muted);font-size:13px;
-         background:var(--surface);border-radius:10px;border:1px solid var(--border);margin-bottom:16px">
-      Share image not generated yet — re-save the campaign to generate it.
+      </div>
+      {% endif %}
     </div>
-    <a
-      href="{{ url_for('share_image', slug=campaign.slug) }}?dl=1"
-      class="btn btn-gold btn-sm"
-    >⬇ Download Image</a>
-  </div>
 
-  <!-- Edit Campaign -->
-  <div class="section-card">
-    <div class="section-title">Edit with AI</div>
-    <p class="edit-help">
-      Describe what to change in plain language. The AI will update the campaign and republish the page.
-    </p>
-    <form method="POST" action="{{ url_for('edit', slug=campaign.slug) }}" id="edit-form">
-      <div class="form-group" style="margin-bottom:16px">
+    <!-- Edit with AI -->
+    <div class="edit-section">
+      <div class="edit-label">Edit with AI</div>
+      <form method="POST" action="{{ url_for('edit', slug=campaign.slug) }}"
+            id="edit-form" style="display:flex;flex-direction:column;gap:10px;flex:1">
         <textarea
           name="instruction"
           class="form-control"
-          style="min-height:100px"
-          placeholder="e.g. change the discount to 30%, make the headline more urgent, add a Eid theme, include Mercedes S-Class"
+          placeholder="e.g. change discount to 25%, add urgency, include Eid theme, add Mercedes S-Class..."
           required
+          style="flex:1;min-height:100px"
         ></textarea>
+        <button type="submit" class="btn btn-gold">Apply Edit</button>
+      </form>
+    </div>
+
+  </div><!-- /left-panel -->
+
+  <!-- ── RIGHT PANEL ─────────────────────────────────────────────── -->
+  <div class="right-panel">
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="preview">Landing Page</button>
+      <button class="tab-btn" data-tab="social">Social Images</button>
+      <button class="tab-btn" data-tab="links">UTM Links</button>
+    </div>
+
+    <div class="tab-content">
+
+      <!-- ── Tab 1: Landing page preview ────────────────────────── -->
+      <div class="tab-pane active" id="tab-preview">
+        <div class="iframe-bar">
+          <div class="url-pill">{{ request.host_url }}p/{{ campaign.slug }}</div>
+          <a href="{{ url_for('serve_page', slug=campaign.slug) }}" target="_blank"
+             class="btn btn-outline btn-sm">Open ↗</a>
+          <button class="btn btn-outline btn-sm"
+                  onclick="document.getElementById('preview-iframe').src=document.getElementById('preview-iframe').src">
+            ↻ Refresh
+          </button>
+        </div>
+        <iframe
+          id="preview-iframe"
+          src="{{ url_for('serve_page', slug=campaign.slug) }}"
+          class="preview-iframe"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+        ></iframe>
       </div>
-      <button type="submit" class="btn btn-gold">Apply Edit</button>
-    </form>
-  </div>
-</div>
+
+      <!-- ── Tab 2: Social images ────────────────────────────────── -->
+      <div class="tab-pane" id="tab-social">
+        <div class="social-tab-content">
+
+          {% if not social_keys %}
+          <div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;">
+            Social images not generated yet — re-save this campaign to generate all 12 formats.
+          </div>
+          {% else %}
+
+          <p style="font-size:12px;color:var(--muted);margin-bottom:16px">
+            4 layouts × 3 formats — download and post directly.
+          </p>
+
+          <!-- Layout selector tabs -->
+          <div class="si-layout-tabs">
+            {% for lkey, llabel in layout_labels.items() %}
+            <button class="si-ltab {% if loop.first %}active{% endif %}" data-slayout="{{ lkey }}">
+              {{ llabel }}
+              {% if lkey in ('classic','bold') %}
+                <span class="si-badge si-badge-std">Standard</span>
+              {% else %}
+                <span class="si-badge si-badge-cr">Creative</span>
+              {% endif %}
+            </button>
+            {% endfor %}
+          </div>
+
+          <!-- One panel per layout -->
+          {% for lkey, llabel in layout_labels.items() %}
+          <div class="si-layout-panel {% if loop.first %}active{% endif %}" data-slpanel="{{ lkey }}">
+
+            <!-- Format pills -->
+            <div class="si-format-pills">
+              {% for fkey, flabel in format_labels.items() %}
+              <button class="si-fpill {% if loop.first %}active{% endif %}"
+                      data-sfmt="{{ fkey }}">{{ flabel }}</button>
+              {% endfor %}
+            </div>
+
+            <!-- Format panes -->
+            {% for fkey, flabel in format_labels.items() %}
+            {% set img_key = lkey + '__' + fkey %}
+            <div class="si-fmt-pane {% if loop.first %}active{% endif %}"
+                 data-sfpane="{{ fkey }}">
+
+              {% if img_key in social_keys %}
+              <div class="si-img-wrap {% if fkey == 'story' %}story-wrap{% endif %}">
+                <img
+                  src="{{ url_for('social_image_file', slug=campaign.slug, key=img_key) }}"
+                  alt="{{ llabel }} {{ flabel }}"
+                  loading="lazy"
+                  onerror="this.parentElement.innerHTML='<div class=si-img-missing>Image failed to load — re-save campaign.</div>'"
+                >
+              </div>
+              <div class="si-actions">
+                <a href="{{ url_for('social_image_file', slug=campaign.slug, key=img_key) }}?dl=1"
+                   class="btn btn-gold btn-sm">⬇ Download</a>
+                <span class="si-dim">{{ flabel }}</span>
+              </div>
+              {% else %}
+              <div class="si-img-missing">
+                Not generated — re-save the campaign to generate all formats.
+              </div>
+              {% endif %}
+
+            </div>
+            {% endfor %}
+
+          </div>
+          {% endfor %}
+
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ── Tab 3: UTM Links ────────────────────────────────────── -->
+      <div class="tab-pane" id="tab-links">
+        <div class="links-tab-content">
+          <table class="utm-table">
+            <thead>
+              <tr>
+                <th>Platform</th>
+                <th>URL</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for link in utm_links %}
+              <tr>
+                <td>
+                  <div class="utm-platform">
+                    {{ link.platform.icon }}
+                    {{ link.platform.label }}
+                  </div>
+                </td>
+                <td>
+                  <div class="utm-url">{{ link.url }}</div>
+                </td>
+                <td>
+                  <button class="copy-btn" data-url="{{ link.url }}">Copy</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /tab-content -->
+  </div><!-- /right-panel -->
+
+</div><!-- /workspace -->
 
 <!-- Loading overlay -->
 <div id="loading-overlay">
   <div class="spinner"></div>
-  <div class="loading-text">Updating campaign...</div>
-  <div class="loading-sub">Applying your changes and republishing</div>
+  <div class="loading-text">Updating campaign…</div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  // Copy UTM URL buttons
-  document.querySelectorAll('.copy-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      navigator.clipboard.writeText(btn.dataset.url).then(() => {
-        const orig = btn.textContent;
-        btn.textContent = 'Copied!';
-        btn.classList.add('copied');
-        setTimeout(() => {
-          btn.textContent = orig;
-          btn.classList.remove('copied');
-        }, 2000);
+  // ── Flash auto-dismiss ─────────────────────────────────────────
+  setTimeout(function() {
+    var fc = document.querySelector('.flash-container');
+    if (fc) { fc.style.transition = 'opacity 0.4s'; fc.style.opacity = '0';
+              setTimeout(function(){ fc.style.display = 'none'; }, 400); }
+  }, 3000);
+
+  // ── Right panel tabs ───────────────────────────────────────────
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Social images: layout tabs ─────────────────────────────────
+  document.querySelectorAll('.si-ltab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.si-ltab').forEach(function(t){ t.classList.remove('active'); });
+      document.querySelectorAll('.si-layout-panel').forEach(function(p){ p.classList.remove('active'); });
+      tab.classList.add('active');
+      var panel = document.querySelector('[data-slpanel="' + tab.dataset.slayout + '"]');
+      if (panel) panel.classList.add('active');
+    });
+  });
+
+  // ── Social images: format pills (scoped per layout panel) ──────
+  document.querySelectorAll('.si-layout-panel').forEach(function(panel) {
+    panel.querySelectorAll('.si-fpill').forEach(function(pill) {
+      pill.addEventListener('click', function() {
+        panel.querySelectorAll('.si-fpill').forEach(function(p){ p.classList.remove('active'); });
+        panel.querySelectorAll('.si-fmt-pane').forEach(function(p){ p.classList.remove('active'); });
+        pill.classList.add('active');
+        var pane = panel.querySelector('[data-sfpane="' + pill.dataset.sfmt + '"]');
+        if (pane) pane.classList.add('active');
       });
     });
   });
 
-  // Show loading overlay on edit submit
-  document.getElementById('edit-form').addEventListener('submit', () => {
+  // ── Copy UTM buttons ───────────────────────────────────────────
+  document.querySelectorAll('.copy-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      navigator.clipboard.writeText(btn.dataset.url).then(function() {
+        var orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(function() { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+      });
+    });
+  });
+
+  // ── Edit form: show loading overlay ───────────────────────────
+  document.getElementById('edit-form').addEventListener('submit', function() {
     document.getElementById('loading-overlay').classList.add('visible');
   });
 </script>

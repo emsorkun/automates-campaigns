@@ -646,5 +646,17 @@ footer{{
   </div>
 </footer>
 
+
+<script>
+  (function(){{
+    var slug = "{campaign.get('slug','')}";
+    document.querySelectorAll('.btn-primary,.btn-secondary').forEach(function(btn){{
+      btn.addEventListener('click',function(){{
+        var ev=(this.href||'').indexOf('wa.me')>-1?'cta_whatsapp':'cta_call';
+        try{{navigator.sendBeacon('/p/'+slug+'/track?event='+ev);}}catch(e){{}}
+      }});
+    }});
+  }})();
+</script>
 </body>
 </html>"""
