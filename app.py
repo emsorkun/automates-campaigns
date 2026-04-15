@@ -144,7 +144,10 @@ def share_image(slug: str):
         return "Not found", 404
     if row is None or not row["share_image"]:
         return "Not found", 404
-    return Response(row["share_image"], mimetype="image/jpeg")
+    headers = {}
+    if request.args.get("dl"):
+        headers["Content-Disposition"] = f"attachment; filename={slug}-social.jpg"
+    return Response(row["share_image"], mimetype="image/jpeg", headers=headers)
 
 
 @app.route("/p/<slug>")

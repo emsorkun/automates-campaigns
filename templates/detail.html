@@ -233,6 +233,28 @@
     </table>
   </div>
 
+  <!-- Social Media Image -->
+  <div class="section-card">
+    <div class="section-title">Social Media Image</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+      1200 × 630 · Ready to post on Instagram, Facebook, Twitter, LinkedIn
+    </p>
+    <img
+      src="{{ url_for('share_image', slug=campaign.slug) }}"
+      alt="Social share image"
+      style="width:100%;border-radius:10px;border:1px solid var(--border);display:block;margin-bottom:16px"
+      onerror="this.parentElement.querySelector('.img-error').style.display='block';this.style.display='none'"
+    >
+    <div class="img-error" style="display:none;padding:32px;text-align:center;color:var(--muted);font-size:13px;
+         background:var(--surface);border-radius:10px;border:1px solid var(--border);margin-bottom:16px">
+      Share image not generated yet — re-save the campaign to generate it.
+    </div>
+    <a
+      href="{{ url_for('share_image', slug=campaign.slug) }}?dl=1"
+      class="btn btn-gold btn-sm"
+    >⬇ Download Image</a>
+  </div>
+
   <!-- Edit Campaign -->
   <div class="section-card">
     <div class="section-title">Edit with AI</div>

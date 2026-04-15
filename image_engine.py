@@ -57,11 +57,14 @@ def _logo():
 
 def _car_photo(query: str):
     """Download a car photo from loremflickr — no API key required."""
+    import hashlib
+    lock = int(hashlib.md5(query.encode()).hexdigest()[:6], 16) % 9999 + 1
     tags = ",".join(query.split()[:5])
     try:
         r = requests.get(
-            f"https://loremflickr.com/{W}/{H}/{tags}",
-            timeout=12, allow_redirects=True
+            f"https://loremflickr.com/{W}/{H}/{tags}?lock={lock}",
+            timeout=12, allow_redirects=True,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; AutoMatesCampaigns/1.0)"}
         )
         if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
             return Image.open(io.BytesIO(r.content)).convert("RGB").resize((W, H), Image.LANCZOS)

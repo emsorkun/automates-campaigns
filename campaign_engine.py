@@ -234,18 +234,12 @@ def fetch_car_image(query: str) -> str:
         except Exception:
             pass
 
-    # Fallback: loremflickr — free, no API key, real Flickr car photos
-    try:
-        tags = ",".join(query.split()[:5])
-        url  = f"https://loremflickr.com/1200/800/{tags}"
-        r    = requests.get(url, timeout=10, allow_redirects=True, stream=True)
-        r.close()
-        if r.status_code == 200:
-            return r.url  # resolved Flickr CDN URL (stable)
-    except Exception:
-        pass
-
-    return ""
+    # Fallback: loremflickr — free, no API key, real Flickr photos.
+    # Use a lock derived from the query so the same car always gets the same photo.
+    import hashlib
+    lock = int(hashlib.md5(query.encode()).hexdigest()[:6], 16) % 9999 + 1
+    tags = ",".join(query.split()[:5])
+    return f"https://loremflickr.com/1200/800/{tags}?lock={lock}"
 
 
 def _make_headline_html(headline: str) -> str:
