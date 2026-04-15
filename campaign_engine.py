@@ -250,9 +250,71 @@ def _make_headline_html(headline: str) -> str:
     return f"<span>{headline}</span>"
 
 
-def _render_car_card(car: dict, offer: dict, index: int) -> str:
-    image_url = fetch_car_image(car.get("image_query", f"{car.get('make', '')} {car.get('model', '')}"))
-    car_name = f"{car.get('make', '')} {car.get('model', '')}".strip()
+def download_car_image(query: str) -> bytes | None:
+    """Download raw image bytes for a car query. Tries Pexels → Unsplash → Pixabay → loremflickr."""
+    import hashlib
+
+    UA = {"User-Agent": "Mozilla/5.0 (compatible; AutoMatesCampaigns/1.0)"}
+
+    if PEXELS_API_KEY:
+        try:
+            r = requests.get("https://api.pexels.com/v1/search",
+                headers={"Authorization": PEXELS_API_KEY},
+                params={"query": query, "per_page": 1, "orientation": "landscape"}, timeout=8)
+            photos = r.json().get("photos", []) if r.ok else []
+            if photos:
+                ir = requests.get(photos[0]["src"]["large2x"], timeout=10, headers=UA)
+                if ir.ok:
+                    return ir.content
+        except Exception:
+            pass
+
+    if UNSPLASH_ACCESS_KEY:
+        try:
+            r = requests.get("https://api.unsplash.com/search/photos",
+                params={"query": query, "per_page": 1, "orientation": "landscape",
+                        "client_id": UNSPLASH_ACCESS_KEY}, timeout=8)
+            results = r.json().get("results", []) if r.ok else []
+            if results:
+                ir = requests.get(results[0]["urls"]["regular"], timeout=10, headers=UA)
+                if ir.ok:
+                    return ir.content
+        except Exception:
+            pass
+
+    # Pixabay — free API key from pixabay.com (env: PIXABAY_API_KEY)
+    pixabay_key = os.environ.get("PIXABAY_API_KEY", "")
+    if pixabay_key:
+        try:
+            r = requests.get("https://pixabay.com/api/",
+                params={"key": pixabay_key, "q": query, "image_type": "photo",
+                        "orientation": "horizontal", "per_page": 3, "safesearch": "true"},
+                timeout=8)
+            hits = r.json().get("hits", []) if r.ok else []
+            if hits:
+                ir = requests.get(hits[0]["largeImageURL"], timeout=10, headers=UA)
+                if ir.ok:
+                    return ir.content
+        except Exception:
+            pass
+
+    # Last resort: loremflickr with car-specific tags + download bytes
+    try:
+        lock = int(hashlib.md5(query.encode()).hexdigest()[:6], 16) % 9999 + 1
+        # Force car/automobile tags so we don't get cats
+        make_model = " ".join(query.split()[:2])
+        tags = f"{make_model.replace(' ', ',')},car,automobile,vehicle"
+        r = requests.get(f"https://loremflickr.com/1200/800/{tags}?lock={lock}",
+            timeout=12, allow_redirects=True, headers=UA)
+        if r.ok and r.headers.get("content-type", "").startswith("image"):
+            return r.content
+    except Exception:
+        pass
+
+    return None
+
+
+def _render_car_card(car: dict, offer: dict, index: int, image_url: str = "") -> str:
 
     if offer["type"] == "discount_percent" and offer.get("discount_percent"):
         badge = f"{offer['discount_percent']}% OFF"
@@ -285,14 +347,18 @@ def _render_car_card(car: dict, offer: dict, index: int) -> str:
     </div>"""
 
 
-def generate_html(campaign: dict, active: bool = True, og_image_url: str = "") -> str:
+def generate_html(campaign: dict, active: bool = True, og_image_url: str = "", car_image_urls: list = None) -> str:
     """Generate full branded HTML landing page for a campaign."""
     cars = campaign["cars"]
     offer = campaign["offer"]
     validity = campaign["validity"]
     highlights = campaign.get("highlights", [])
 
-    car_cards = "".join(_render_car_card(c, offer, i) for i, c in enumerate(cars))
+    car_image_urls = car_image_urls or []
+    car_cards = "".join(
+        _render_car_card(c, offer, i, car_image_urls[i] if i < len(car_image_urls) else "")
+        for i, c in enumerate(cars)
+    )
 
     highlights_html = ""
     if highlights:

@@ -10,7 +10,7 @@ import datetime
 
 from flask import Flask, render_template, request, redirect, url_for, flash, Response
 
-from campaign_engine import parse_campaign, edit_campaign, generate_html
+from campaign_engine import parse_campaign, edit_campaign, generate_html, download_car_image
 from image_engine import generate_share_image
 
 app = Flask(__name__)
@@ -53,6 +53,14 @@ def init_db():
                 active       INTEGER NOT NULL DEFAULT 1,
                 created_at   TEXT NOT NULL,
                 updated_at   TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS car_images (
+                slug TEXT NOT NULL,
+                idx  INTEGER NOT NULL,
+                data BLOB NOT NULL,
+                PRIMARY KEY (slug, idx)
             )
         """)
         for col, definition in [
@@ -122,7 +130,31 @@ def _row_to_campaign(row) -> dict:
 def _build_campaign_assets(campaign: dict, slug: str, active: bool):
     """Generate HTML + share image for a campaign. Returns (html, img_bytes)."""
     og_url = url_for("share_image", slug=slug, _external=True)
-    html   = generate_html(campaign, active=active, og_image_url=og_url)
+
+    # Download car images server-side so we can serve them ourselves (avoids hotlink blocks)
+    cars = campaign.get("cars", [])
+    car_image_urls = []
+    for i, car in enumerate(cars):
+        query = car.get("image_query") or f"{car.get('make', '')} {car.get('model', '')} car"
+        try:
+            img_bytes = download_car_image(query)
+        except Exception:
+            img_bytes = None
+        if img_bytes:
+            # Store in DB via a separate table; use slug+index as key
+            try:
+                with get_db() as conn:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO car_images (slug, idx, data) VALUES (?, ?, ?)",
+                        (slug, i, img_bytes)
+                    )
+                    conn.commit()
+            except Exception:
+                img_bytes = None
+        url = url_for("car_image", slug=slug, idx=i, _external=True) if img_bytes else ""
+        car_image_urls.append(url)
+
+    html = generate_html(campaign, active=active, og_image_url=og_url, car_image_urls=car_image_urls)
     try:
         img = generate_share_image(campaign)
     except Exception:
@@ -148,6 +180,21 @@ def share_image(slug: str):
     if request.args.get("dl"):
         headers["Content-Disposition"] = f"attachment; filename={slug}-social.jpg"
     return Response(row["share_image"], mimetype="image/jpeg", headers=headers)
+
+
+@app.route("/p/<slug>/img/<int:idx>")
+def car_image(slug: str, idx: int):
+    """Serve a downloaded car image stored in the DB."""
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT data FROM car_images WHERE slug=? AND idx=?", (slug, idx)
+            ).fetchone()
+    except Exception:
+        return "Not found", 404
+    if row is None or not row["data"]:
+        return "Not found", 404
+    return Response(row["data"], mimetype="image/jpeg")
 
 
 @app.route("/p/<slug>")
@@ -356,6 +403,7 @@ def delete_campaign(slug: str):
     try:
         with get_db() as conn:
             conn.execute("DELETE FROM campaigns WHERE slug=?", (slug,))
+            conn.execute("DELETE FROM car_images WHERE slug=?", (slug,))
             conn.commit()
     except Exception as e:
         flash(f"Failed to delete: {e}", "error")
