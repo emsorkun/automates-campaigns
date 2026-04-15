@@ -49,9 +49,9 @@ LAYOUT_LABELS = {
 
 # Font sizes per format (headline, car label, badge, site, validity, big-number)
 _FS = {
-    "og":    dict(hl=54, car=18, badge=26, site=22, valid=20, big=130),
-    "post":  dict(hl=66, car=22, badge=32, site=26, valid=24, big=160),
-    "story": dict(hl=80, car=28, badge=38, site=30, valid=28, big=196),
+    "og":    dict(hl=70, car=24, badge=34, site=28, valid=26, big=150),
+    "post":  dict(hl=86, car=30, badge=44, site=34, valid=30, big=186),
+    "story": dict(hl=104, car=38, badge=54, site=40, valid=36, big=224),
 }
 
 _font_cache = {}
@@ -63,14 +63,18 @@ _logo_cache = None
 def _font(size, xbold=False):
     key = (size, xbold)
     if key not in _font_cache:
-        url  = FONT_XBOLD if xbold else FONT_BOLD
-        name = "montserrat_xbold" if xbold else "montserrat_bold"
-        path = f"/tmp/{name}.ttf"
+        path = "/tmp/montserrat_var.ttf"
         try:
             if not os.path.exists(path):
                 import urllib.request
-                urllib.request.urlretrieve(url, path)
-            _font_cache[key] = ImageFont.truetype(path, size)
+                urllib.request.urlretrieve(FONT_XBOLD, path)
+            font = ImageFont.truetype(path, size)
+            # Set variable font weight axis: 800 = ExtraBold, 700 = Bold
+            try:
+                font.set_variation_by_axes([800 if xbold else 700])
+            except Exception:
+                pass
+            _font_cache[key] = font
         except Exception:
             _font_cache[key] = ImageFont.load_default()
     return _font_cache[key]
