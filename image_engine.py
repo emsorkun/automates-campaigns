@@ -56,20 +56,59 @@ def _logo():
 
 
 def _car_photo(query: str):
-    """Download a car photo from loremflickr — no API key required."""
-    import hashlib
-    lock = int(hashlib.md5(query.encode()).hexdigest()[:6], 16) % 9999 + 1
-    tags = ",".join(query.split()[:5])
-    try:
-        r = requests.get(
-            f"https://loremflickr.com/{W}/{H}/{tags}?lock={lock}",
-            timeout=12, allow_redirects=True,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; AutoMatesCampaigns/1.0)"}
-        )
-        if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
-            return Image.open(io.BytesIO(r.content)).convert("RGB").resize((W, H), Image.LANCZOS)
-    except Exception:
-        pass
+    """Download a car photo. Tries Pexels → Pixabay → Unsplash → plain dark fallback."""
+    UA = {"User-Agent": "Mozilla/5.0 (compatible; AutoMatesCampaigns/1.0)"}
+
+    pexels_key = os.environ.get("PEXELS_API_KEY", "")
+    if pexels_key:
+        try:
+            r = requests.get(
+                "https://api.pexels.com/v1/search",
+                headers={"Authorization": pexels_key},
+                params={"query": query + " luxury car", "per_page": 1, "orientation": "landscape"},
+                timeout=8,
+            )
+            photos = r.json().get("photos", []) if r.ok else []
+            if photos:
+                ir = requests.get(photos[0]["src"]["large2x"], timeout=12, headers=UA)
+                if ir.ok:
+                    return Image.open(io.BytesIO(ir.content)).convert("RGB").resize((W, H), Image.LANCZOS)
+        except Exception:
+            pass
+
+    unsplash_key = os.environ.get("UNSPLASH_ACCESS_KEY", "")
+    if unsplash_key:
+        try:
+            r = requests.get(
+                "https://api.unsplash.com/search/photos",
+                params={"query": query, "per_page": 1, "orientation": "landscape", "client_id": unsplash_key},
+                timeout=8,
+            )
+            results = r.json().get("results", []) if r.ok else []
+            if results:
+                ir = requests.get(results[0]["urls"]["regular"], timeout=12, headers=UA)
+                if ir.ok:
+                    return Image.open(io.BytesIO(ir.content)).convert("RGB").resize((W, H), Image.LANCZOS)
+        except Exception:
+            pass
+
+    pixabay_key = os.environ.get("PIXABAY_API_KEY", "")
+    if pixabay_key:
+        try:
+            r = requests.get(
+                "https://pixabay.com/api/",
+                params={"key": pixabay_key, "q": query, "image_type": "photo",
+                        "orientation": "horizontal", "per_page": 3, "safesearch": "true"},
+                timeout=8,
+            )
+            hits = r.json().get("hits", []) if r.ok else []
+            if hits:
+                ir = requests.get(hits[0]["largeImageURL"], timeout=12, headers=UA)
+                if ir.ok:
+                    return Image.open(io.BytesIO(ir.content)).convert("RGB").resize((W, H), Image.LANCZOS)
+        except Exception:
+            pass
+
     return None
 
 

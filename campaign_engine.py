@@ -250,7 +250,7 @@ def _make_headline_html(headline: str) -> str:
     return f"<span>{headline}</span>"
 
 
-def download_car_image(query: str) -> bytes | None:
+def download_car_image(query: str):
     """Download raw image bytes for a car query. Tries Pexels → Unsplash → Pixabay."""
     UA = {"User-Agent": "Mozilla/5.0 (compatible; AutoMatesCampaigns/1.0)"}
 
