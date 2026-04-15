@@ -1,0 +1,162 @@
+{% extends "layout.html" %}
+{% block title %}New Campaign – AutoMates Manager{% endblock %}
+
+{% block extra_head %}
+<style>
+  .create-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 40px 48px;
+  }
+
+  .create-hint {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 32px;
+    line-height: 1.6;
+  }
+
+  .example-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .example-pill {
+    font-size: 12px;
+    color: var(--light);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 5px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    user-select: none;
+  }
+
+  .example-pill:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
+  .create-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  /* Loading overlay */
+  #loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(11,12,16,0.92);
+    z-index: 999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  #loading-overlay.visible {
+    display: flex;
+  }
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  .loading-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: -12px;
+  }
+
+  @media (max-width: 768px) {
+    .create-wrap { padding: 24px 20px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="create-wrap">
+  <a href="{{ url_for('index') }}" class="back-link">← All Campaigns</a>
+
+  <div class="page-header" style="margin-bottom:8px">
+    <h1 class="page-header-title">New <span style="color:var(--gold)">Campaign</span></h1>
+  </div>
+
+  <p class="create-hint">
+    Describe the campaign in plain language. Include the car make/model, offer details,
+    and any dates. The AI will extract the details and generate a branded landing page.
+  </p>
+
+  <div class="section-card">
+    <form method="POST" action="{{ url_for('create') }}" id="create-form">
+      <div class="form-group">
+        <label class="form-label">Campaign Description</label>
+        <textarea
+          name="free_text"
+          class="form-control"
+          style="min-height:160px"
+          placeholder="e.g. Lamborghini Urus and Huracán, AED 2,999/day, valid this weekend only"
+          required
+        ></textarea>
+      </div>
+
+      <div class="example-pills">
+        <span class="example-pill">BMW X5 25% off this weekend</span>
+        <span class="example-pill">Lamborghini Urus 2999 AED/day until April 20</span>
+        <span class="example-pill">Toyota Camry and Corolla, free upgrade, Eid special</span>
+        <span class="example-pill">Ferrari 488, VIP deal, members only</span>
+      </div>
+
+      <div class="create-actions" style="margin-top:24px">
+        <button type="submit" class="btn btn-gold">Generate Campaign</button>
+        <a href="{{ url_for('index') }}" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Generating campaign...</div>
+  <div class="loading-sub">Parsing details and building your landing page</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Click example pills to fill the textarea
+  document.querySelectorAll('.example-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelector('textarea[name="free_text"]').value = pill.textContent.trim();
+    });
+  });
+
+  // Show loading overlay on form submit
+  document.getElementById('create-form').addEventListener('submit', () => {
+    document.getElementById('loading-overlay').classList.add('visible');
+  });
+</script>
+{% endblock %}

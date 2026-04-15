@@ -1,0 +1,287 @@
+{% extends "layout.html" %}
+{% block title %}{{ campaign.title }} – AutoMates Manager{% endblock %}
+
+{% block extra_head %}
+<style>
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+
+  .detail-title {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+
+  .detail-meta {
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .detail-cars {
+    color: var(--light);
+  }
+
+  .detail-offer {
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* UTM table */
+  .utm-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .utm-table th {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 0 16px 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .utm-table td {
+    padding: 14px 16px 14px 0;
+    border-bottom: 1px solid rgba(200,169,97,0.06);
+    vertical-align: middle;
+  }
+
+  .utm-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .utm-platform {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    min-width: 130px;
+  }
+
+  .utm-url {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--light);
+    word-break: break-all;
+    line-height: 1.5;
+  }
+
+  .copy-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--gold);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+
+  .copy-btn:hover { background: var(--gold-dim); }
+  .copy-btn.copied { color: var(--green); border-color: rgba(46,204,113,0.3); }
+
+  /* Edit section */
+  .edit-help {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+
+  /* Loading overlay */
+  #loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(11,12,16,0.92);
+    z-index: 999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  #loading-overlay.visible { display: flex; }
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  .loading-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: -12px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <a href="{{ url_for('index') }}" class="back-link">← All Campaigns</a>
+
+  <!-- Campaign header -->
+  <div class="section-card">
+    <div class="detail-header">
+      <div>
+        <h1 class="detail-title">{{ campaign.title }}</h1>
+        <div class="detail-meta">
+          <span class="detail-cars">{{ campaign.cars_str }}</span>
+          <span>·</span>
+          <span class="detail-offer">{{ campaign.offer_label }}</span>
+          {% if campaign.validity_label %}
+            <span>·</span>
+            <span>⏳ {{ campaign.validity_label }}</span>
+          {% endif %}
+        </div>
+      </div>
+      <span class="status-badge {% if campaign.active %}status-live{% else %}status-off{% endif %}">
+        {{ 'Live' if campaign.active else 'Off' }}
+      </span>
+    </div>
+
+    <div class="detail-actions" style="margin-top:20px">
+      <a href="{{ campaign.preview_url }}" target="_blank" class="btn btn-outline btn-sm">
+        Preview ↗
+      </a>
+
+      <form method="POST" action="{{ url_for('toggle', slug=campaign.slug) }}" style="display:inline">
+        <button type="submit" class="btn btn-sm {% if campaign.active %}btn-danger{% else %}btn-outline{% endif %}">
+          {{ 'Turn Off' if campaign.active else 'Turn On' }}
+        </button>
+      </form>
+
+      <form method="POST" action="{{ url_for('delete_campaign', slug=campaign.slug) }}"
+            style="display:inline"
+            onsubmit="return confirm('Delete this campaign? This cannot be undone.')">
+        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- UTM Links -->
+  <div class="section-card">
+    <div class="section-title">UTM Links</div>
+    <table class="utm-table">
+      <thead>
+        <tr>
+          <th>Platform</th>
+          <th>URL</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for link in utm_links %}
+        <tr>
+          <td>
+            <div class="utm-platform">
+              {{ link.platform.icon }}
+              {{ link.platform.label }}
+            </div>
+          </td>
+          <td>
+            <div class="utm-url">{{ link.url }}</div>
+          </td>
+          <td>
+            <button class="copy-btn" data-url="{{ link.url }}">Copy</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Edit Campaign -->
+  <div class="section-card">
+    <div class="section-title">Edit with AI</div>
+    <p class="edit-help">
+      Describe what to change in plain language. The AI will update the campaign and republish the page.
+    </p>
+    <form method="POST" action="{{ url_for('edit', slug=campaign.slug) }}" id="edit-form">
+      <div class="form-group" style="margin-bottom:16px">
+        <textarea
+          name="instruction"
+          class="form-control"
+          style="min-height:100px"
+          placeholder="e.g. change the discount to 30%, make the headline more urgent, add a Eid theme, include Mercedes S-Class"
+          required
+        ></textarea>
+      </div>
+      <button type="submit" class="btn btn-gold">Apply Edit</button>
+    </form>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Updating campaign...</div>
+  <div class="loading-sub">Applying your changes and republishing</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Copy UTM URL buttons
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(btn.dataset.url).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = orig;
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    });
+  });
+
+  // Show loading overlay on edit submit
+  document.getElementById('edit-form').addEventListener('submit', () => {
+    document.getElementById('loading-overlay').classList.add('visible');
+  });
+</script>
+{% endblock %}
