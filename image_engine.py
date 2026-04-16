@@ -266,7 +266,7 @@ def _classic(photo, campaign, W, H):
     if badge:
         bf  = _font(fs["badge"], xbold=True)
         bw  = int(draw.textlength(badge, font=bf)) + int(W * 0.05)
-        bh  = int(H * 0.086)
+        bh  = int(fs["badge"] * 1.65)
         bx  = W - bw - PAD
         by  = int(H * 0.044)
         draw.rounded_rectangle([(bx, by), (bx+bw, by+bh)],
@@ -285,7 +285,7 @@ def _classic(photo, campaign, W, H):
     headline = campaign.get("headline", campaign.get("campaign_title", ""))
     hf    = _font(fs["hl"], xbold=True)
     lines = _wrap(headline, hf, W - PAD * 2, draw)
-    ty    = H - BAR_H - int(H * 0.195)
+    ty    = H - BAR_H - int(H * 0.254)
     for ln in lines:
         draw.text((PAD, ty), ln, font=hf, fill=WHITE)
         ty += int(fs["hl"] * 1.2)
@@ -375,19 +375,19 @@ def _bold(photo, campaign, W, H):
         if badge:
             bf  = _font(fs["badge"], xbold=True)
             bw  = int(draw.textlength(badge, font=bf)) + int(W * 0.05)
-            bh  = int(H * 0.088)
+            bh  = int(fs["badge"] * 1.65)
             bx  = W - bw - PAD
             by  = int(H * 0.04)
             draw.rounded_rectangle([(bx, by), (bx+bw, by+bh)],
                                     radius=int(bh * 0.3), fill=GOLD)
             draw.text((bx + int(W*0.025), by + int(bh*0.2)), badge, font=bf, fill=DARK)
 
-    # Left text block (lower half)
+    # Left text block — start higher on OG to avoid domain overlap
     cars     = campaign.get("cars", [])
     cars_str = " · ".join(
         f"{c.get('make','')} {c.get('model','')}".strip() for c in cars).upper()
 
-    ty = int(H * 0.54)
+    ty = int(H * 0.390) if W == 1200 else int(H * 0.54)
 
     # Gold accent rule
     rule_h = max(2, int(H * 0.004))
@@ -427,8 +427,8 @@ def _cinematic(photo, campaign, W, H):
     base = photo.convert("RGBA") if photo else Image.new("RGBA", (W, H), (*DARK, 255))
 
     # Diagonal band polygon
-    band_top = 0.46 if H <= 1080 else 0.54
-    band_bot = 0.36 if H <= 1080 else 0.42
+    band_top = 0.50 if H <= 1080 else 0.58
+    band_bot = 0.43 if H <= 1080 else 0.51
     ov  = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d   = ImageDraw.Draw(ov)
     poly = [(0, 0), (int(W*band_top), 0), (int(W*band_bot), H), (0, H)]
@@ -586,8 +586,8 @@ def _split(photo, campaign, W, H):
         if badge:
             bf  = _font(fs["badge"], xbold=True)
             bw  = int(draw.textlength(badge, font=bf)) + int(panel_w * 0.12)
-            bh  = int(H * 0.115)
-            bx, by = PAD, ty + int(H * 0.03)
+            bh  = int(fs["badge"] * 1.65)
+            bx, by = PAD, ty + int(H * 0.015)
             draw.rounded_rectangle([(bx, by), (bx+bw, by+bh)],
                                     radius=int(bh * 0.3), fill=GOLD)
             draw.text((bx + int(panel_w*0.06), by + int(bh*0.22)), badge, font=bf, fill=DARK)
@@ -599,7 +599,7 @@ def _split(photo, campaign, W, H):
 
     else:
         # ── Portrait (post 1080×1080 · story 1080×1920): top photo · bottom panel ──
-        photo_h = int(H * 0.50)
+        photo_h = int(H * 0.44)
 
         if photo:
             scale   = max(W / photo.width, photo_h / photo.height)
@@ -668,7 +668,7 @@ def _split(photo, campaign, W, H):
         if badge:
             bf  = _font(fs["badge"], xbold=True)
             bw  = int(draw.textlength(badge, font=bf)) + int(W * 0.1)
-            bh  = int(H * 0.052)
+            bh  = int(fs["badge"] * 1.65)
             bx  = (W - bw) // 2
             by  = ty + int((H - photo_h) * 0.022)
             draw.rounded_rectangle([(bx, by), (bx+bw, by+bh)],
