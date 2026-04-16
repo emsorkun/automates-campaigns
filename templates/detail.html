@@ -453,6 +453,62 @@
   .copy-btn:hover { background: var(--gold-dim); }
   .copy-btn.copied { color: var(--green); border-color: rgba(46,204,113,0.3); }
 
+  /* ── Landing page photo picker ───────────────────────────────── */
+  .photo-picker-section {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .photo-picker-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .photo-thumb-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 6px 7px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    outline: none;
+  }
+
+  .photo-thumb-btn:hover {
+    border-color: var(--gold);
+    background: var(--gold-dim);
+  }
+
+  .photo-thumb-btn.active {
+    border-color: var(--gold);
+    background: var(--gold-dim);
+  }
+
+  .photo-thumb-btn img {
+    width: 100%;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    border-radius: 5px;
+    display: block;
+  }
+
+  .photo-thumb-btn span {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+  }
+
+  .photo-thumb-btn.active span { color: var(--gold); }
+
   /* ── Loading overlay ──────────────────────────────────────────── */
   #loading-overlay {
     display: none;
@@ -558,6 +614,26 @@
       </div>
       {% endif %}
     </div>
+
+    <!-- Landing Page Photo Picker -->
+    {% if car_variants|length > 1 %}
+    <div class="photo-picker-section">
+      <div class="analytics-label">Landing Page Photo</div>
+      <form method="POST" action="{{ url_for('set_car_photo', slug=campaign.slug) }}">
+        <div class="photo-picker-row">
+          {% for vidx, vlabel in car_variants %}
+          <button type="submit" name="variant" value="{{ vidx }}"
+                  class="photo-thumb-btn {% if vidx == active_car_variant %}active{% endif %}">
+            <img src="{{ url_for('car_image', slug=campaign.slug, idx=vidx) }}"
+                 alt="{{ vlabel }}"
+                 onerror="this.style.opacity='0.2'">
+            <span>{{ vlabel }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </form>
+    </div>
+    {% endif %}
 
     <!-- Edit with AI -->
     <div class="edit-section">
@@ -798,18 +874,39 @@
     });
   });
 
-  // ── Social images: photo variant pills (scoped per format pane) ─
-  document.querySelectorAll('.si-fmt-pane').forEach(function(pane) {
-    pane.querySelectorAll('.si-vpill').forEach(function(pill) {
-      pill.addEventListener('click', function() {
-        pane.querySelectorAll('.si-vpill').forEach(function(p){ p.classList.remove('active'); });
-        pane.querySelectorAll('.si-variant-block').forEach(function(b){ b.classList.add('si-variant-hidden'); });
-        pill.classList.add('active');
-        var block = pane.querySelector('[data-vblock="' + pill.dataset.vpill + '"]');
-        if (block) block.classList.remove('si-variant-hidden');
+  // ── Social images: global sticky photo variant selection ─────────
+  var _siVariant = '';
+
+  function _applyVariant(variant) {
+    _siVariant = variant;
+    // Update all variant pills everywhere
+    document.querySelectorAll('.si-vpill').forEach(function(p) {
+      p.classList.toggle('active', p.dataset.vpill === variant);
+    });
+    // Show/hide variant blocks in every format pane
+    document.querySelectorAll('.si-fmt-pane').forEach(function(pane) {
+      pane.querySelectorAll('.si-variant-block').forEach(function(b) {
+        b.classList.add('si-variant-hidden');
       });
+      var target = pane.querySelector('[data-vblock="' + variant + '"]');
+      if (target) {
+        target.classList.remove('si-variant-hidden');
+      } else {
+        // Variant not present in this pane — fall back to first
+        var first = pane.querySelector('.si-variant-block');
+        if (first) first.classList.remove('si-variant-hidden');
+      }
+    });
+  }
+
+  document.querySelectorAll('.si-vpill').forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      _applyVariant(pill.dataset.vpill);
     });
   });
+
+  // Apply initial state
+  _applyVariant('');
 
   // ── Copy UTM buttons ───────────────────────────────────────────
   document.querySelectorAll('.copy-btn').forEach(function(btn) {

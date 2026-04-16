@@ -4,17 +4,30 @@ Pages are served directly from SQLite — no GitHub, no deploy wait.
 """
 
 import os
+import re
 import json
 import sqlite3
 import datetime
+from functools import wraps
 
-from flask import Flask, render_template, request, redirect, url_for, flash, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, Response, session
 
 from campaign_engine import parse_campaign, edit_campaign, generate_html, download_car_image
 from image_engine import generate_share_image, generate_social_images, fetch_multiple_photos, LAYOUT_LABELS, FORMAT_LABELS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "automates-dev-key")
+
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "12345678")
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
 
 DB_PATH = os.environ.get(
     "DB_PATH",
@@ -192,6 +205,18 @@ def _build_campaign_assets(campaign: dict, slug: str, active: bool):
         url = url_for("car_image", slug=slug, idx=i) if img_bytes else ""
         car_image_urls.append(url)
 
+    # Store extra photo variants (idx=10, idx=20) for landing page picker
+    for vi, vbytes in enumerate(photo_bytes_list[1:3], start=1):
+        try:
+            with get_db() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO car_images (slug, idx, data) VALUES (?, ?, ?)",
+                    (slug, vi * 10, vbytes)
+                )
+                conn.commit()
+        except Exception:
+            pass
+
     html = generate_html(campaign, active=active, og_image_url=og_url,
                          car_image_urls=car_image_urls)
 
@@ -352,7 +377,25 @@ def serve_page(slug: str):
 
 # ── Admin routes ──────────────────────────────────────────────────────────────
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if request.method == "POST":
+        if request.form.get("password") == ADMIN_PASSWORD:
+            session["logged_in"] = True
+            return redirect(url_for("index"))
+        error = "Wrong password."
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
 @app.route("/")
+@login_required
 def index():
     try:
         with get_db() as conn:
@@ -368,11 +411,13 @@ def index():
 
 
 @app.route("/new")
+@login_required
 def new_campaign():
     return render_template("create.html")
 
 
 @app.route("/create", methods=["POST"])
+@login_required
 def create():
     free_text = request.form.get("free_text", "").strip()
     if not free_text:
@@ -450,6 +495,7 @@ def _get_analytics(slug: str) -> dict:
 
 
 @app.route("/campaigns/<slug>")
+@login_required
 def detail(slug: str):
     try:
         with get_db() as conn:
@@ -478,12 +524,37 @@ def detail(slug: str):
     except Exception:
         social_keys = set()
 
+    # Landing page photo picker: which variants exist and which is active
+    car_variants = []
+    active_car_variant = 0
+    try:
+        with get_db() as conn:
+            html_row = conn.execute(
+                "SELECT html FROM campaigns WHERE slug=?", (slug,)
+            ).fetchone()
+            ci_rows = conn.execute(
+                "SELECT idx FROM car_images WHERE slug=? AND idx IN (0,10,20)", (slug,)
+            ).fetchall()
+        available_idxs = {r["idx"] for r in ci_rows}
+        labels = {0: "Photo 1", 10: "Photo 2", 20: "Photo 3"}
+        for vidx in (0, 10, 20):
+            if vidx in available_idxs:
+                car_variants.append((vidx, labels[vidx]))
+        if html_row and html_row["html"]:
+            m = re.search(r"url\('/p/[^']+/img/(0|10|20)'\)", html_row["html"])
+            if m:
+                active_car_variant = int(m.group(1))
+    except Exception:
+        pass
+
     return render_template("detail.html", campaign=campaign, utm_links=utm_links,
                            analytics=analytics, social_keys=social_keys,
-                           layout_labels=LAYOUT_LABELS, format_labels=FORMAT_LABELS)
+                           layout_labels=LAYOUT_LABELS, format_labels=FORMAT_LABELS,
+                           car_variants=car_variants, active_car_variant=active_car_variant)
 
 
 @app.route("/campaigns/<slug>/edit", methods=["POST"])
+@login_required
 def edit(slug: str):
     instruction = request.form.get("instruction", "").strip()
     if not instruction:
@@ -540,6 +611,7 @@ def edit(slug: str):
 
 
 @app.route("/campaigns/<slug>/toggle", methods=["POST"])
+@login_required
 def toggle(slug: str):
     try:
         with get_db() as conn:
@@ -571,7 +643,40 @@ def toggle(slug: str):
     return redirect(url_for("detail", slug=slug))
 
 
+@app.route("/campaigns/<slug>/set-car-photo", methods=["POST"])
+@login_required
+def set_car_photo(slug: str):
+    """Switch which fetched photo variant is used on the landing page."""
+    try:
+        variant = int(request.form.get("variant", 0))
+    except (ValueError, TypeError):
+        variant = 0
+    if variant not in (0, 10, 20):
+        variant = 0
+    try:
+        with get_db() as conn:
+            row = conn.execute("SELECT html FROM campaigns WHERE slug=?", (slug,)).fetchone()
+        if not row:
+            flash("Campaign not found.", "error")
+            return redirect(url_for("index"))
+        html = re.sub(
+            r"url\('/p/[^']+/img/(?:0|10|20)'\)",
+            f"url('/p/{slug}/img/{variant}')",
+            row["html"]
+        )
+        now = datetime.datetime.utcnow().isoformat()
+        with get_db() as conn:
+            conn.execute("UPDATE campaigns SET html=?, updated_at=? WHERE slug=?",
+                         (html, now, slug))
+            conn.commit()
+        flash("Landing page photo updated.", "success")
+    except Exception as e:
+        flash(f"Failed to update photo: {e}", "error")
+    return redirect(url_for("detail", slug=slug))
+
+
 @app.route("/campaigns/<slug>/delete", methods=["POST"])
+@login_required
 def delete_campaign(slug: str):
     try:
         with get_db() as conn:

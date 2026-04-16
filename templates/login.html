@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In – AutoMates Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0B0C10;
+    --surface:  #14151B;
+    --card:     #1A1B22;
+    --gold:     #C8A961;
+    --gold-dim: rgba(200,169,97,0.15);
+    --gold-light: #E8D5A3;
+    --border:   rgba(200,169,97,0.18);
+    --white:    #FFFFFF;
+    --light:    #B0B0C4;
+    --muted:    #6E6E82;
+    --red:      #E74C3C;
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--white);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .login-box {
+    width: 100%;
+    max-width: 380px;
+    padding: 0 24px;
+  }
+
+  .login-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+
+  .login-logo img {
+    height: 40px;
+    width: auto;
+  }
+
+  .login-logo-label {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    border-left: 1px solid var(--border);
+    padding-left: 12px;
+  }
+
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 32px;
+  }
+
+  .login-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    margin-bottom: 6px;
+  }
+
+  .login-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 28px;
+  }
+
+  .form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    margin-bottom: 20px;
+  }
+
+  .form-control:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-dim);
+  }
+
+  .form-control::placeholder { color: var(--muted); }
+
+  .btn-gold {
+    width: 100%;
+    padding: 13px 20px;
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    color: #0B0C10;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+
+  .btn-gold:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-gold:active { transform: translateY(0); }
+
+  .error-msg {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 14px;
+    background: rgba(231,76,60,0.10);
+    border: 1px solid rgba(231,76,60,0.3);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--red);
+    margin-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="login-box">
+
+  <div class="login-logo">
+    <img src="https://raw.githubusercontent.com/emsorkun/automates-campaigns/main/logo.png"
+         alt="AutoMates" onerror="this.style.display='none'">
+    <span class="login-logo-label">Campaign Manager</span>
+  </div>
+
+  <div class="login-card">
+    <div class="login-title">Sign In</div>
+    <div class="login-subtitle">Enter your password to access the campaign manager.</div>
+
+    {% if error %}
+    <div class="error-msg">&#9888; {{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('login') }}">
+      <label class="form-label" for="password">Password</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        class="form-control"
+        placeholder="Enter password"
+        autofocus
+        required
+      >
+      <button type="submit" class="btn-gold">Sign In</button>
+    </form>
+  </div>
+
+</div>
+</body>
+</html>
